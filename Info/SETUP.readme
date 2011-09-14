@@ -1,0 +1,33 @@
+The code is organized with a certain structure in mind.
+
+The hierarchy:
+Instrument
+  Date
+    Object
+      specialFlag
+        Exposure
+          Chip
+            Order
+
+So, you have a hires (instrument) folder, under which you have a 2011-Jan-26 (date) folder. Name them something that makes sense -- I'm going to run with those two as an example of everything else.
+
+EVERYTHING HAPPENS FROM THIS instrument/date/ DIRECTORY: 
+
+$ cd /hires/2011-Jan-26
+
+again: EVERYTHING HAPPENS FROM THIS DIRECTORY.
+
+$ ls
+Configs/
+Raw/
+
+Name a directory under Raw with the name of your object. Make sure that you have a configuration file that has the same name with a .ini ending on it. For example, if my object were PHL957 I would see: 
+
+$ ls Raw/
+PHL957/
+
+$ ls Configs/
+PHL957.ini
+
+The code parses the names based off of "." delimiters. 
+
