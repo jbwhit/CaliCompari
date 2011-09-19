@@ -1,1 +1,3 @@
 This repository holds code that allows for relative wavelength calibration comparison between two spectra. 
+
+Most of the code is written in python.
