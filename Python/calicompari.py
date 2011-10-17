@@ -10,6 +10,8 @@ Email: JBWHIT@gmail.com
 
 import sys
 import getopt
+# import argparse
+# parser.add_argument('foo', nargs='?', default=42) 
 import os
 import glob
 # import csv
@@ -117,7 +119,11 @@ def cleanup(inputarray):
   """Cleanup the input spectrum"""
   if 'verbose' in globals():
     print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
-  wav, flx, err, trash = inputarray
+  try:
+    wav, flx, err, trash = inputarray
+  except:
+    print "Don't have 4 values, huh?"
+    wav, flx, err = inputarray
   # wav, flx, err, trash = inputarray.data
   print "Max Flux", np.max(flx)
   print "Min Flux", np.min(flx)
@@ -350,10 +356,10 @@ def calibration(wav, flx, err, con):
   # ================================================
   iow, iof = np.loadtxt(FTSFile, unpack=True) # Load in the reference spectrum
   
-  if(wav[0] < iow[0]+minReferenceOverlap or wav[-1] > iow[-1] - maxReferenceOverlap):
+  if(wav[0] < iow[0] + minReferenceOverlap or wav[-1] > iow[-1] - maxReferenceOverlap):
     print "Outside of overlap"
     # continue
-  
+  # print today
   # =================================
   # = Slice FTS to manageable size  =
   # =================================
@@ -371,18 +377,23 @@ def calibration(wav, flx, err, con):
   # ======================================
   # = Initial Shift; Kernel Size finding =
   # ======================================
+  # Should I make this more robust? -- maybe have a flag for an uncertain offset?
+  # print "Initial shift is: ", initialshift
+  
   m = mi.Minuit(initial_shift,\
                 fmultiple=0.82,\
                 # fix_fmultiple=True,\
                 # fshift=0.01,\
-                # fshift=-1.5,\
-                fshift=-1.5,\
+                fshift=0.05,\
                 fsigma=sigma,\
                 # fix_fsigma=True,\
                 strategy=2)
   
   # TODO make this fsigma come from configuration file
-  m.printMode=1
+  # m.printMode=1
+  print "Scanning..."
+  m.scan(("fshift",20,-1.5,1.5))
+  print "done..."
   m.migrad()
   if m.values["fsigma"] < 0.:
     m = mi.Minuit(initial_shift,\
@@ -569,20 +580,20 @@ def calibration(wav, flx, err, con):
   #   pl.savefig(PsCalibrationFile)
   #   pl.close()
   # 
-  OutputCalibrationFileHandle = open('output.ascii', 'a')
+  # OutputCalibrationFileHandle = open('output.ascii', 'a')
   print "Weighted Average: ", round(weighted_av(velocity_fit,velocity_err),2), "m/s"
   print "Weighted std: ", round(weighted_std(velocity_fit,velocity_err),2), "m/s"
   
-  for j in range(len(wav_bin_av)):
-    # if len(wav) == len(pix):
-    #   print >>OutputCalibrationFileHandle, wav_bin_av[j], velocity_fit[j], velocity_err[j], \
-    #           resolution_fit[j], resolution_err[j], \
-    #           pix_average[j]
-    #   continue
-    print >>OutputCalibrationFileHandle, wav_bin_av[j], velocity_fit[j], velocity_err[j], \
-          resolution_fit[j], resolution_err[j]
-
-  OutputCalibrationFileHandle.close()
+  # for j in range(len(wav_bin_av)):
+  #   # if len(wav) == len(pix):
+  #   #   print >>OutputCalibrationFileHandle, wav_bin_av[j], velocity_fit[j], velocity_err[j], \
+  #   #           resolution_fit[j], resolution_err[j], \
+  #   #           pix_average[j]
+  #   #   continue
+  #   print >>OutputCalibrationFileHandle, wav_bin_av[j], velocity_fit[j], velocity_err[j], \
+  #         resolution_fit[j], resolution_err[j]
+  # 
+  # OutputCalibrationFileHandle.close()
   # OutputResolutionFileHandle = open(OutputResolutionFile,'w')
   # for j in range(len(wav_bin_av)):
       # print >>OutputResolutionFileHandle, wav_bin_av[j], resolution_fit[j], resolution_err[j] 
@@ -598,11 +609,12 @@ def calibration(wav, flx, err, con):
 # = Main Program begins =
 # =======================
 def main(argv=None):
+  # initialshift = 0.01 # default shift
   if argv is None:
     argv = sys.argv
   try:
     try:
-      opts, args = getopt.getopt(argv[1:], "hc:r:o:v", ["help", "compare=", "reference=", "output="])
+      opts, args = getopt.getopt(argv[1:], "hc:r:s:o:v", ["help", "compare=", "reference=", "shift=" "output="])
     except getopt.error, msg:
       raise Usage(msg)
     # TODO flag for reference file; 
@@ -613,11 +625,12 @@ def main(argv=None):
         global verbose
         verbose = True
         print "Verbose turned on."
-      # if option == "-vv": # this just isn't true
-      #   verbose = True
-      #   veryverbose = True
       if option in ("-c", "--compare"):
         inputfitsfile = value
+      if option in ("-r", "--reference"):
+        referencefile = value
+      if option in ("-s", "--shift"):
+        initialshift = value
       if option in ("-h", "--help"):
         raise Usage(help_message)
       if option in ("-o", "--output"):
