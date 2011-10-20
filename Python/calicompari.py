@@ -14,7 +14,6 @@ import getopt
 # parser.add_argument('foo', nargs='?', default=42) 
 import os
 import glob
-# import csv
 import numpy as np
 
 import scipy as sp
@@ -36,7 +35,6 @@ import random as ra
 from scipy.optimize import leastsq
 import scipy.constants
 import pyfits as pf
-# from numpy import ma # Don't think I'll need masked arrays just yet
 
 c_light = sp.constants.c
 
@@ -53,7 +51,7 @@ The help message goes here.
 # TODO 
 # Integrate previous python code into this one which can take commandline 
 # arguments
-# read fits files
+# DONE: read fits files
 # DONE: cleanup regions to be excluded
 # fit a continuum 
 # find the difference in wavelength calibration between two reference spectra
@@ -104,8 +102,6 @@ def whit_skew(x,o,c,a):
   return (2.0 / o) * ( 1.0 / np.sqrt(2.0) ) * \
          np.exp( - ( ( (x - c) / o ) ** 2.) / 2.0 ) * \
          0.5 * (1.0 + sp.special.erf( a * ((x - c) / o) ) )        
-
-
 
 # TODO uncomment and provide useful stuff
 class Usage(Exception):
@@ -358,7 +354,8 @@ def calibration(wav, flx, err, con):
   
   if(wav[0] < iow[0] + minReferenceOverlap or wav[-1] > iow[-1] - maxReferenceOverlap):
     print "Outside of overlap"
-    # continue
+    return
+
   # print today
   # =================================
   # = Slice FTS to manageable size  =
@@ -371,9 +368,9 @@ def calibration(wav, flx, err, con):
   # Divide continuum out from input file
   starting_flx = flx / con
   starting_err = err / con
-  pl.plot(wav, starting_flx)
-  pl.savefig("first.pdf")
-  pl.close()
+  # pl.plot(wav, starting_flx)
+  # pl.savefig("first.pdf")
+  # pl.close()
   # ======================================
   # = Initial Shift; Kernel Size finding =
   # ======================================
@@ -383,7 +380,6 @@ def calibration(wav, flx, err, con):
   m = mi.Minuit(initial_shift,\
                 fmultiple=0.82,\
                 # fix_fmultiple=True,\
-                # fshift=0.01,\
                 fshift=0.05,\
                 fsigma=sigma,\
                 # fix_fsigma=True,\
@@ -394,7 +390,10 @@ def calibration(wav, flx, err, con):
   print "Scanning..."
   m.scan(("fshift",20,-1.5,1.5))
   print "done..."
-  m.migrad()
+  try: 
+    m.migrad()
+  except:
+    print "Serious problem with the entire order."
   if m.values["fsigma"] < 0.:
     m = mi.Minuit(initial_shift,\
                   fmultiple=m.values["fmultiple"],\
@@ -467,7 +466,7 @@ def calibration(wav, flx, err, con):
       i=i,\
       fix_i=True,\
       fmultiple=fitordermultiple,\
-      fix_fmultiple=True,\
+      # fix_fmultiple=True,\
       fshift=fitordershift,\
       fsigma=fitordersigma,\
       # fix_fsigma=True,\ #test commented 
@@ -671,14 +670,26 @@ def main(argv=None):
   if inputfitsfile.split('.')[-1] == "fits":
     for x in pf.open(inputfitsfile):
       if type(x) == pf.core.ImageHDU:
-        wav, flx, err = cleanup(x.data)
+        try:
+          wav, flx, err = cleanup(x.data)
+        except: 
+          print "That entire order broke... Moving on to the next one!"
+          continue
         if not len(wav) == len(flx) == len(err):
           print "Something's wrong with the cleanup! Breaking!"
           break
-        con = continuumfit(wav,flx,err)
-        avwav, cal, calerr, res, reserr = calibration(wav, flx, err, con)
-        pf.append(calibrationfitsfile, np.array([avwav, cal, calerr, res, reserr]), verify=False)
-        # Do I need residuals? 
+        # print type(wav)
+        try: 
+          con = continuumfit(wav,flx,err)
+        except: print "whatever1"
+        try:
+          avwav, cal, calerr, res, reserr = calibration(wav, flx, err, con)
+        except Exception, err: 
+          print "whatever2", err
+        try:
+          pf.append(calibrationfitsfile, np.array([avwav, cal, calerr, res, reserr]), verify=False)
+        except: print "whatever3"
+    # Do I need residuals? 
 
     # printmode for minuit =1 in very verbose mode
   

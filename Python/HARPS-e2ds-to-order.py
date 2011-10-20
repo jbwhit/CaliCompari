@@ -33,20 +33,21 @@ def main(argv=None):
   print len(hdu[0].data)
   polynomialOrder = hdu[0].header['HIERARCH ESO DRS CAL TH DEG LL']
   orders = hdu[0].header['HIERARCH ESO DRS CAL LOC NBO']
-  coefficients = (polynomialOrder + 1) * orders # number of coefficients in the file
-  whatever = []
+  coefficients = (polynomialOrder + 1) * orders # number of coefficients per order
+  allCoefficients = []
   for x in xrange(coefficients):
-    whatever.append(hdu[0].header['HIERARCH ESO DRS CAL TH COEFF LL' + str(x)])
+    allCoefficients.append(hdu[0].header['HIERARCH ESO DRS CAL TH COEFF LL' + str(x)])
   A = {}
-  for y in xrange(0,len(whatever),polynomialOrder+1):
-    A[y/(polynomialOrder+1)] = whatever[y:y+polynomialOrder+1]
+  for y in xrange(0,len(allCoefficients),polynomialOrder+1):
+    A[y/(polynomialOrder+1)] = allCoefficients[y:y+polynomialOrder+1]
   for order in range(orders):
     print "order: ", order
     wavelength = []
     for pixel in xrange(len(hdu[0].data[order])):
       temp = 0.0
       for x in range(polynomialOrder):
-        temp += A[order][x] * pixel ** x
+        temp += allCoefficients[order + 1 + x] * pixel ** x
+        # temp += A[order][x] * pixel ** x
       wavelength.append(temp)
     pf.append(outputFITSfile, np.array([np.array(wavelength), hdu[0].data[order], np.sqrt(np.abs(hdu[0].data[order]))]))
   
