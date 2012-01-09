@@ -24,7 +24,8 @@ def smoothContinuum(binsize, nlarge, plot=False):
     siof.append(np.average(heapq.nlargest(nlarge, iof[i:i + binsize])))
   
   tck = splrep(siow, siof)
-  np.savetxt('sao2010.contin.ascii', zip(iow, iof/splev(iow,tck)))
+  print "Multiplying wavelength by 10 to convert to Angstroms."
+  np.savetxt('sao2010.contin.ascii', zip(iow * 10.0, iof/splev(iow,tck)))
   if plot == True:
     plot(iow, iof/splev(iow,tck))
   pass
