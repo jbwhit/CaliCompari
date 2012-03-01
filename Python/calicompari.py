@@ -42,7 +42,6 @@ c_light = sp.constants.c
 # how to test for directory and how to create directory if not there.
 # if not os.path.exists(dir):
     # os.makedirs(dir)
-# Don't do PS output 
 # Find out how to automatically load pylab for ipython and python startups.
 
 help_message = '''
@@ -51,8 +50,6 @@ The help message goes here.
 # TODO 
 # Integrate previous python code into this one which can take commandline 
 # arguments
-# DONE: read fits files
-# DONE: cleanup regions to be excluded
 # fit a continuum 
 # find the difference in wavelength calibration between two reference spectra
 # allow for a slope to the fit
@@ -258,42 +255,42 @@ def calibration(wav, flx, err, con):
     return (better_y2 - better_flx) ** 2 / \
                (fmultiple * err / con) ** 2 
 
-  def continuum_shift(fmultiple,fshift,fsigma,cmultiple):
-    better_flx = flx / (con + con * cmultiple) * fmultiple
-    better_kernel = normal_gaussian(gauss_elements,fsigma)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav+fshift,better_tck)
-    return sum((better_y2 - better_flx) ** 2 / \
-               (fmultiple * err / (con + con * cmultiple)) ** 2 )
-
-  def continuumshiftarray(fmultiple,fshift,fsigma,cmultiple):
-    better_flx = flx / (con + con * cmultiple) * fmultiple
-    better_kernel = normal_gaussian(gauss_elements,fsigma)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav+fshift,better_tck)
-    return (better_y2 - better_flx) ** 2 / \
-               (fmultiple * err / (con + con * cmultiple)) ** 2 
-
-  def second_shift(fmultiple,fshift,fsigma,fskew):
-    better_flx = starting_flx * fmultiple
-    better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav+fshift,better_tck)
-    return sum((better_y2 - better_flx) ** 2 / \
-               (fmultiple * err / con) ** 2 )
-
-  def skewshiftarray(fmultiple,fshift,fsigma,fskew):
-    better_flx = starting_flx * fmultiple
-    better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav+fshift,better_tck)
-    return (better_y2 - better_flx) ** 2 / \
-               (fmultiple * err / con) ** 2 
-
+  # def continuum_shift(fmultiple,fshift,fsigma,cmultiple):
+  #   better_flx = flx / (con + con * cmultiple) * fmultiple
+  #   better_kernel = normal_gaussian(gauss_elements,fsigma)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav+fshift,better_tck)
+  #   return sum((better_y2 - better_flx) ** 2 / \
+  #              (fmultiple * err / (con + con * cmultiple)) ** 2 )
+  # 
+  # def continuumshiftarray(fmultiple,fshift,fsigma,cmultiple):
+  #   better_flx = flx / (con + con * cmultiple) * fmultiple
+  #   better_kernel = normal_gaussian(gauss_elements,fsigma)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav+fshift,better_tck)
+  #   return (better_y2 - better_flx) ** 2 / \
+  #              (fmultiple * err / (con + con * cmultiple)) ** 2 
+  # 
+  # def second_shift(fmultiple,fshift,fsigma,fskew):
+  #   better_flx = starting_flx * fmultiple
+  #   better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav+fshift,better_tck)
+  #   return sum((better_y2 - better_flx) ** 2 / \
+  #              (fmultiple * err / con) ** 2 )
+  # 
+  # def skewshiftarray(fmultiple,fshift,fsigma,fskew):
+  #   better_flx = starting_flx * fmultiple
+  #   better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav+fshift,better_tck)
+  #   return (better_y2 - better_flx) ** 2 / \
+  #              (fmultiple * err / con) ** 2 
+  # 
   def shiftperbin(i,fmultiple,fshift,fsigma):
     better_flx = starting_flx[whit_index[int(i)]] * fmultiple
     better_kernel = normal_gaussian(gauss_elements,fsigma)
@@ -303,44 +300,44 @@ def calibration(wav, flx, err, con):
     return sum((better_y2 - better_flx) ** 2 / \
                 (fmultiple * starting_err[whit_index[int(i)]] ) ** 2)
 
-  def shiftperbinarray(i,fmultiple,fshift,fsigma):
-    better_flx = starting_flx[whit_index[int(i)]] * fmultiple
-    better_kernel = normal_gaussian(gauss_elements,fsigma)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
-    return (better_y2 - better_flx) ** 2 / \
-                (fmultiple * err[whit_index[int(i)]] / con[whit_index[int(i)]]) ** 2
-
-  def plotresidualshiftperbin(fshift,i,fmultiple,fsigma):
-    better_flx = starting_flx[whit_index[int(i)]] * fmultiple
-    better_kernel = normal_gaussian(gauss_elements,fsigma)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
-    pl.plot((better_y2 - better_flx) )
-    return
-
-  def plotsidebyside(i):
-    pl.plot(wav[fitbinindex],better_y2,wav[fitbinindex],flx[fitbinindex] * fitbinmultiple)
-
-  def plotcontinuum_shift(fmultiple,fshift,fsigma,cmultiple):
-    better_flx = flx / (con + con * cmultiple) * fmultiple
-    better_kernel = normal_gaussian(gauss_elements,fsigma)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav+fshift,better_tck)
-    return sum((better_y2 - better_flx) ** 2 / \
-               (fmultiple * err / (con + con * cmultiple)) ** 2 )
-
-  def skewshiftperbin(fshift,i,fmultiple,fsigma,fskew):
-    better_flx = starting_flx[whit_index[int(i)]] * fmultiple
-    better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
-    better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
-                           slice_iof, mode='same'))
-    better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
-    return sum((better_y2 - better_flx) ** 2 / \
-                (fmultiple * starting_err[whit_index[int(i)]]) ** 2)
+  # def shiftperbinarray(i,fmultiple,fshift,fsigma):
+  #   better_flx = starting_flx[whit_index[int(i)]] * fmultiple
+  #   better_kernel = normal_gaussian(gauss_elements,fsigma)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
+  #   return (better_y2 - better_flx) ** 2 / \
+  #               (fmultiple * err[whit_index[int(i)]] / con[whit_index[int(i)]]) ** 2
+  # 
+  # def plotresidualshiftperbin(fshift,i,fmultiple,fsigma):
+  #   better_flx = starting_flx[whit_index[int(i)]] * fmultiple
+  #   better_kernel = normal_gaussian(gauss_elements,fsigma)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
+  #   pl.plot((better_y2 - better_flx) )
+  #   return
+  # 
+  # def plotsidebyside(i):
+  #   pl.plot(wav[fitbinindex],better_y2,wav[fitbinindex],flx[fitbinindex] * fitbinmultiple)
+  # 
+  # def plotcontinuum_shift(fmultiple,fshift,fsigma,cmultiple):
+  #   better_flx = flx / (con + con * cmultiple) * fmultiple
+  #   better_kernel = normal_gaussian(gauss_elements,fsigma)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav+fshift,better_tck)
+  #   return sum((better_y2 - better_flx) ** 2 / \
+  #              (fmultiple * err / (con + con * cmultiple)) ** 2 )
+  # 
+  # def skewshiftperbin(fshift,i,fmultiple,fsigma,fskew):
+  #   better_flx = starting_flx[whit_index[int(i)]] * fmultiple
+  #   better_kernel = normal_skew_gaussian(gauss_elements,fsigma,fskew)
+  #   better_tck = si.splrep(slice_iow, np.convolve(better_kernel,\
+  #                          slice_iof, mode='same'))
+  #   better_y2 = si.splev(wav[whit_index[int(i)]]+fshift, better_tck)
+  #   return sum((better_y2 - better_flx) ** 2 / \
+  #               (fmultiple * starting_err[whit_index[int(i)]]) ** 2)
   
   if 'verbose' in globals():
     print "Beginning calibration analysis of data.", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -376,7 +373,8 @@ def calibration(wav, flx, err, con):
   # ======================================
   # Should I make this more robust? -- maybe have a flag for an uncertain offset?
   # print "Initial shift is: ", initialshift
-  
+
+  # TODO comment out using continuum; use slope on FTS instead.
   m = mi.Minuit(initial_shift,\
                 fmultiple=0.82,\
                 # fix_fmultiple=True,\
@@ -385,11 +383,10 @@ def calibration(wav, flx, err, con):
                 # fix_fsigma=True,\
                 strategy=2)
   
-  # TODO make this fsigma come from configuration file
   # m.printMode=1
   print "Scanning..."
   m.scan(("fshift",20,-1.5,1.5))
-  print "done..."
+  print "done."
   try: 
     m.migrad()
   except:
@@ -405,6 +402,7 @@ def calibration(wav, flx, err, con):
   #m.minos() 
   order_velocity = c_light / wav[len(wav)/2]
   # TODO add in the ability for a slope in the fit -- not just an overall multiple
+  # slopeArray = 
   # Review finished to here... 
   fitordermultiple = m.values["fmultiple"]
   fitordermultiple_err = m.errors["fmultiple"]
@@ -443,7 +441,10 @@ def calibration(wav, flx, err, con):
   # ========================================
   # = Create the bins and structure needed =
   # ========================================
-
+  # Find minimum spacing between data points: use this to figure out how to oversample
+  # np.min([wav[i+1] - wav[i] for i in range(len(wav)-1)])
+  
+  
   whit_index = []
   whit_step = wav[0] * step * 1000.0 / c_light
   for i in np.arange(wav[0],wav[-1], whit_step ):
