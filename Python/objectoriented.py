@@ -173,6 +173,15 @@ class Exposure(object):
       pass
     pass
   
+  def newOverSample(self):
+    """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
+    Rename. """
+    for x in self.Orders:
+      self.Orders[x]['mindel'] = self.Orders[x]['wav'][-1] - self.Orders[x]['wav'][0]
+      for i in range(len(self.Orders[x]['wav']) - 1):
+        if self.Orders[x]['mindel'] > self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]: 
+          self.Orders[x]['mindel'] = self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]
+    pass
   
   def fullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, elements=1000, sigma=50):
     """docstring for fullExposureShift"""
