@@ -37,6 +37,7 @@ c_light = spc.c
 # TODO check difference between slope/no-slope
 # TODO wavelength cut-out regions
 # TODO minimum bin-size requirement
+# TODO integrate exactly the smooth iodine spectrum
 
 help_message = '''
 Various limitations: 
