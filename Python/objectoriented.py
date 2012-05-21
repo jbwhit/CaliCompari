@@ -295,6 +295,16 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) / \
                     (self.Orders[order]['err'] / self.Orders[order]['con'])) ** 2 )
   
+  
+  def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+    """trying to smooth, interpolate, and integrate the fit."""
+    kernel = self.gaussboxKernel(elements, fsigma)
+    s = si.UnivariateSpline(iow, np.convolve(kernel, (self.Orders[order]['iof'] * fmultiple) + fslope * (self.Orders[order]['iow'] - np.average(self.Orders[order]['iow'])), mode='same'))
+    overflx = np.array([s.integral(x - self.Orders[x]['mindel']/2.0, x + self.Orders[x]['mindel']/2.0) for x in wav])
+    return np.sum( ((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) / \
+                    (self.Orders[order]['err'] / self.Orders[order]['con'])) ** 2 )
+  
+  
   def gaussboxShift(self, order, fmultiple, fshift, fsigma, elements, fwidth):
     """docstring for gaussboxShift"""
     kernel = self.gaussboxKernel(elements, fsigma, fwidth)
