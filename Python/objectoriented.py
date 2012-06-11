@@ -509,6 +509,7 @@ c_light = spc.c
 # TODO check difference between slope/no-slope
 # TODO wavelength cut-out regions
 # TODO minimum bin-size requirement
+# TODO integrate exactly the smooth iodine spectrum
 
 help_message = '''
 Various limitations: 
@@ -645,6 +646,15 @@ class Exposure(object):
       pass
     pass
   
+  def newOverSample(self):
+    """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
+    Rename. """
+    for x in self.Orders:
+      self.Orders[x]['mindel'] = self.Orders[x]['wav'][-1] - self.Orders[x]['wav'][0]
+      for i in range(len(self.Orders[x]['wav']) - 1):
+        if self.Orders[x]['mindel'] > self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]: 
+          self.Orders[x]['mindel'] = self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]
+    pass
   
   def fullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, elements=1000, sigma=50):
     """docstring for fullExposureShift"""
@@ -767,6 +777,16 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) / \
                     (self.Orders[order]['err'] / self.Orders[order]['con'])) ** 2 )
   
+  
+  def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+    """trying to smooth, interpolate, and integrate the fit."""
+    kernel = self.gaussboxKernel(elements, fsigma)
+    s = si.UnivariateSpline(iow, np.convolve(kernel, (self.Orders[order]['iof'] * fmultiple) + fslope * (self.Orders[order]['iow'] - np.average(self.Orders[order]['iow'])), mode='same'))
+    overflx = np.array([s.integral(x - self.Orders[x]['mindel']/2.0, x + self.Orders[x]['mindel']/2.0) for x in wav])
+    return np.sum( ((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) / \
+                    (self.Orders[order]['err'] / self.Orders[order]['con'])) ** 2 )
+  
+  
   def gaussboxShift(self, order, fmultiple, fshift, fsigma, elements, fwidth):
     """docstring for gaussboxShift"""
     kernel = self.gaussboxKernel(elements, fsigma, fwidth)
@@ -799,8 +819,35 @@ class Exposure(object):
       self.Orders[order][binSize]['bins'][i]['ok'] = (self.Orders[order]['wav'] > self.Orders[order][binSize]['binEdges'][i]) & (self.Orders[order]['wav'] <= self.Orders[order][binSize]['binEdges'][i + 1])
       self.Orders[order][binSize]['bins'][i]['iok'] = (self.Orders[order]['oiow'] > self.Orders[order][binSize]['binEdges'][i] - oiowTolerance) & (self.Orders[order]['oiow'] <= self.Orders[order][binSize]['binEdges'][i + 1] + oiowTolerance)
     pass
-  
-  
+
+  def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
+    """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
+    lamb = np.average(self.Orders[order]['wav'])
+    try:
+      type(self.fitResults[binSize])
+    except:
+      self.fitResults[binSize] = {}
+    try:
+      type(self.Orders[order][binSize])
+      return
+    except:
+      self.Orders[order][binSize] = {}
+    binAngstroms = lamb * binSize * 1000 / c_light
+    temp = []
+    for x in range(int(1.0/overlap)):
+      temp.append(np.arange(self.Orders[order]['wav'][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][-1] + overlap * x * binAngstroms, binAngstroms))
+
+    np.append(temp[0], self.Orders[order]['wav'][-1]) # add last wavelength point to first bin edges array
+    oiowTolerance = 2.0
+    self.Orders[order][binSize]['bins'] = {}
+    COUNTER = 0
+    for edgearray in temp:
+      for i in range(len(edgearray) - 1):
+        self.Orders[order][binSize]['bins'][COUNTER] = {}
+        self.Orders[order][binSize]['bins'][COUNTER]['ok'] = (self.Orders[order]['wav'] > edgearray[i]) & (self.Orders[order]['wav'] <= edgearray[i + 1])
+        self.Orders[order][binSize]['bins'][COUNTER]['iok'] = (self.Orders[order]['oiow'] > edgearray[i] - oiowTolerance) & (self.Orders[order]['oiow'] <= edgearray[i + 1] + oiowTolerance)
+        COUNTER += 1
+    pass
   
   def fullOrderBinShift(self, order=7, binSize=350):
     """docstring for fullOrderBinShift"""
