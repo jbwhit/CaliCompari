@@ -363,11 +363,18 @@ class Exposure(object):
     binAngstroms = lamb * binSize * 1000 / c_light
     temp = []
     for x in range(int(1.0/overlap)):
-      self.Orders[order][binSize]['binEdges'] = np.arange(self.Orders[order]['wav'][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][-1] + overlap * x * binAngstroms, binAngstroms)
+      temp.append(np.arange(self.Orders[order]['wav'][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][-1] + overlap * x * binAngstroms, binAngstroms))
 
-    self.Orders[order][binSize]['binEdges'] = np.hstack(temp)
-    self.Orders[order][binSize]['binEdges'] = np.append(self.Orders[order][binSize]['binEdges'], self.Orders[order]['wav'][-1]) # add last wavelength point to edges)
-    # THINK -- have to check whether consecutive bins are the right way around: bin that begins at 950 and ends at 20 does not make sense. 
+    np.append(temp[0], self.Orders[order]['wav'][-1]) # add last wavelength point to first bin edges array
+    oiowTolerance = 2.0
+    self.Orders[order][binSize]['bins'] = {}
+    COUNTER = 0
+    for edgearray in temp:
+      for i in range(len(edgearray) - 1):
+        self.Orders[order][binSize]['bins'][COUNTER] = {}
+        self.Orders[order][binSize]['bins'][COUNTER]['ok'] = (self.Orders[order]['wav'] > edgearray[i]) & (self.Orders[order]['wav'] <= edgearray[i + 1])
+        self.Orders[order][binSize]['bins'][COUNTER]['iok'] = (self.Orders[order]['oiow'] > edgearray[i] - oiowTolerance) & (self.Orders[order]['oiow'] <= edgearray[i + 1] + oiowTolerance)
+        COUNTER += 1
     pass
   
   def fullOrderBinShift(self, order=7, binSize=350):
