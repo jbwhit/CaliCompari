@@ -251,9 +251,9 @@ class Exposure(object):
     # try: 
     print "Finding initial shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
     m.migrad()
-    self.tiltfitResults[str(order)] = {}
-    self.tiltfitResults[str(order)]['values'] = m.values
-    self.tiltfitResults[str(order)]['errors'] = m.errors
+    self.tiltfitResults[order] = {}
+    self.tiltfitResults[order]['values'] = m.values
+    self.tiltfitResults[order]['errors'] = m.errors
     # except:
       # print "Serious problem with order:", order
     pass
