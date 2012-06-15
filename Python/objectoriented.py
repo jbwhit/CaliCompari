@@ -152,12 +152,17 @@ class Exposure(object):
           self.Orders[x]['mindel'] = self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]
     pass
   
-  def fullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, elements=1000, sigma=50):
+  def newfullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, binSize=350):
     """docstring for fullExposureShift"""
+    starttime=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for x in self.Orders:
-      if 'oiow' in self.Orders[x]:
+      if 'iow' in self.Orders[x]:
         print "Working on order: ", x
-        self.dictionaryOrderShift(order=x, verbose=verbose, veryVerbose=veryVerbose, robustSearch=robustSearch)
+        self.newCreateBinArrays(order=x, binSize=binSize) # new!
+        self.newOrderShiftandTilt(order=x, veryVerbose=veryVerbose) # new!
+        self.newfullOrderBinShift(order=x, binSize=binSize)
+    print "Finished working on exposure."
+    print "Started: ", starttime, "Ended: ", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     pass
 
   def newOrderShiftandTilt(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
@@ -307,11 +312,17 @@ class Exposure(object):
       FTSsigma = FTSchunk * m.values['fsigma'] / elements # size of sigma in wavelength
       FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0)) * FTSsigma # size of FWHM in wavelength
       R = lamb / FWHM
+      posFTSsigma = FTSsigma + m.errors['fsigma'] / elements # positive error
+      negFTSsigma = FTSsigma - m.errors['fsigma'] / elements # negative error
+      Rsmall = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * posFTSsigma)
+      Rbig = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * negFTSsigma)
       self.fitResults[binSize][order]['bins'][bin]['avwav'] = lamb
       self.fitResults[binSize][order]['bins'][bin]['cal'] = cal
       self.fitResults[binSize][order]['bins'][bin]['calerr'] = calerr
       self.fitResults[binSize][order]['bins'][bin]['R'] = R
-      # TODO Rerr for bin
+      self.fitResults[binSize][order]['bins'][bin]['Rsmall'] = R - Rsmall
+      self.fitResults[binSize][order]['bins'][bin]['Rbig'] = Rbig - R
+      # TODO Rerr for bin +/i 
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
     except:
       # TODO flag bin as bad.
