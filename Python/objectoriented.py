@@ -21,6 +21,7 @@ import fileinput
 import shlex
 import pylab as pl
 import pyfits as pf
+import cPickle as pickle
 
 import scipy.interpolate as si
 import scipy.signal as ss
@@ -31,10 +32,11 @@ import scipy.constants as spc
 c_light = spc.c
 
 # TODO ceres.cleanup(): invalid value encountered in divide
-# TODO figure out how to save results
 # TODO wavelength cut-out regions
 # TODO minimum bin-size requirement
 # TODO think about integration interval (+/- 1/2 mindel)
+# TODO make a flag that says whether each method is actually run.
+# TODO implement logging so everything is reproducible.
 
 help_message = '''
 Various limitations: 
@@ -42,8 +44,6 @@ Must have an FTS spectrum w/o gaps
 Must have a telescope spectrum w/ increasing wavelength (gaps are OK)
 The spacing of the nearest two pixels in the telescope spectrum is used to subsample; so unevenly sub-grid your data at your peril.
 '''
-# TODO make a flag that says whether each method is actually run.
-# TODO implement logging so everything is reproducible. 
 
 class Exposure(object):
   """docstring for Exposure"""
@@ -339,6 +339,17 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
                     (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
 
+  def saveFIT(self, filename="fit.fits"):
+    """docstring for saveFIT"""
+    with open(filename, 'wb') as fp:
+      pickle.dump(self.fitResults, fp)
+    pass
+
+  def loadFIT(self, filename="fit.fits"):
+    """docstring for loadFIT"""
+    with open(filename, 'rb') as fp:
+      self.loadfit = pickle.load(fp)
+    pass
   
   # def plotInitialGuess(self, order, fmultiple, fshift, fsigma, elements=1000, sigma=50):
   #   """docstring for plotInitialGuess"""
