@@ -73,10 +73,14 @@ class Exposure(object):
       hdu = pf.open(self.exposureFile)
       self.header = hdu[0].header
       for i,x in enumerate(hdu):
-        self.Orders[i] = {}
-        self.Orders[i]['wav'] = x.data[0]
-        self.Orders[i]['flx'] = x.data[1]
-        self.Orders[i]['err'] = x.data[2]
+        try:
+          type(hdu[i].data)
+          self.Orders[i] = {}
+          self.Orders[i]['wav'] = x.data[0]
+          self.Orders[i]['flx'] = x.data[1]
+          self.Orders[i]['err'] = x.data[2]
+        except:
+          self.exposureHeader = hdu[-1].header
     else:
       print "Not a fits file.", self.exposureFile
     pass
