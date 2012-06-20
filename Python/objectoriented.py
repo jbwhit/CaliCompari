@@ -6,6 +6,7 @@ import shutil
 import os
 import glob
 import csv
+import pprint 
 import numpy as np
 import scipy as sp
 import subprocess as subprocess
@@ -22,7 +23,6 @@ import shlex
 import pylab as pl
 import pyfits as pf
 import cPickle as pickle
-
 import scipy.interpolate as si
 import scipy.signal as ss
 
@@ -41,8 +41,8 @@ c_light = spc.c
 help_message = '''
 Various limitations: 
 Must have an FTS spectrum w/o gaps
-Must have a telescope spectrum w/ increasing wavelength (gaps are OK)
-The spacing of the nearest two pixels in the telescope spectrum is used to subsample; so unevenly sub-grid your data at your peril.
+Must have a telescope spectrum w/ monotonically increasing wavelength (gaps are OK)
+The spacing of the nearest two pixels in the telescope spectrum is used as the pixel size for each order.
 '''
 
 class Exposure(object):
@@ -322,7 +322,6 @@ class Exposure(object):
       self.fitResults[binSize][order]['bins'][bin]['R'] = R
       self.fitResults[binSize][order]['bins'][bin]['Rsmall'] = R - Rsmall
       self.fitResults[binSize][order]['bins'][bin]['Rbig'] = Rbig - R
-      # TODO Rerr for bin +/i 
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
     except:
       # TODO flag bin as bad.
