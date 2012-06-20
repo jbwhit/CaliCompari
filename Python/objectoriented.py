@@ -163,8 +163,11 @@ class Exposure(object):
       if 'iow' in self.Orders[x]:
         print "Working on order: ", x
         self.newCreateBinArrays(order=x, binSize=binSize) # new!
-        self.newOrderShiftandTilt(order=x, veryVerbose=veryVerbose) # new!
-        self.newfullOrderBinShift(order=x, binSize=binSize)
+        try:
+          self.newOrderShiftandTilt(order=x, veryVerbose=veryVerbose) # new!
+          self.newfullOrderBinShift(order=x, binSize=binSize)
+        except:
+          print "Order or bin failed."
     print "Finished working on exposure."
     print "Started: ", starttime, "Ended: ", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     pass
