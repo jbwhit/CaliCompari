@@ -56,7 +56,7 @@ class Exposure(object):
     self.calibrationType = calibrationType # Calibration type: iodine, asteroid, none
     self.calibrationFile = calibrationFile # Calibration File
     self.fitGuess = {}
-    self.fitGuess['initial'] = { 'fshift':0.02, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
+    self.fitGuess['initial'] = { 'fshift':0.002, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
     self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,2000) ,'err_fsigma':5 })
     self.fitGuess['initial'].update({ 'fmultiple':50.25, 'fix_fmultiple':False, 'limit_fmultiple':(0.1, 100.0) ,'err_fmultiple':0.2 })
     self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':False, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
