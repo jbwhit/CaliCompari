@@ -59,7 +59,7 @@ class Exposure(object):
     self.fitGuess['initial'] = { 'fshift':0.002, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
     self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,2000) ,'err_fsigma':5 })
     self.fitGuess['initial'].update({ 'fmultiple':50.25, 'fix_fmultiple':False, 'limit_fmultiple':(0.1, 100.0) ,'err_fmultiple':0.2 })
-    self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':False, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
+    self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':True, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
     self.fitGuess['initial'].update({ 'elements':100, 'fix_elements':True })
     self.fitGuess['initial'].update({ 'fwidth':200, 'fix_fwidth':True })
     self.fitGuess['initial'].update({ 'strategy':2 })
@@ -100,7 +100,7 @@ class Exposure(object):
       iow, iof = np.loadtxt(self.calibrationFile, unpack='True')
     print iow[0], iow[-1]
     for x in self.Orders:
-      if self.Orders[x]['wav'][0] > iow[0] + 50.0:
+      if (self.Orders[x]['wav'][0] > iow[0] + 40.0) & (self.Orders[x]['wav'][-1] < iow[-1] - 150.0):
         try:
           ok = (self.Orders[x]['wav'][0] - 10 < iow) & (self.Orders[x]['wav'][-1] + 10 > iow)
           if len(iow[ok]) > 200:
@@ -370,15 +370,15 @@ class Exposure(object):
   #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
   #   pass
   # 
-  # def plotFitResults(self, order, fmultiple, fshift, fsigma, elements=1000, **kwargs):
-  #   """docstring for plotFitResults"""
-  #   kernel = self.gaussKernel(elements, fsigma)
-  #   tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, self.Orders[order]['oiof'] * fmultiple, mode='same'))
-  #   overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
-  #   pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-  #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
-  #   pass
-  # 
+  def plotFitResults(self, order, fmultiple, fshift, fsigma, elements=1000, **kwargs):
+    """docstring for plotFitResults"""
+    kernel = self.gaussKernel(elements, fsigma)
+    tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, self.Orders[order]['oiof'] * fmultiple, mode='same'))
+    overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
+    pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
+    pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
+    pass
+  
   # def plotTiltFitResults(self, order, fmultiple, fshift, fsigma, fslope, elements=1000, plotResiduals=False, **kwargs):
   #   """docstring for plotTiltFitResults"""
   #   kernel = self.gaussKernel(elements, fsigma)
