@@ -93,7 +93,11 @@ class Exposure(object):
   
   def loadReferenceSpectra(self):
     """docstring for loadReferenceSpectra"""
-    iow, iof = np.loadtxt(self.calibrationFile, unpack='True')
+    try: 
+      iow, iof = np.loadtxt(self.calibrationFile)
+    except:
+      print "Consider saving a faster-loading calibration file."
+      iow, iof = np.loadtxt(self.calibrationFile, unpack='True')
     print iow[0], iow[-1]
     for x in self.Orders:
       if self.Orders[x]['wav'][0] > iow[0] + 50.0:
