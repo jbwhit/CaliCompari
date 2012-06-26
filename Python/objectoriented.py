@@ -6,9 +6,11 @@
 # obtaining a copy of the software and accompanying documentation covered by
 # this license (the "Software") to use, reproduce, display, distribute,
 # execute, and transmit the Software, and to prepare derivative works of the
+# Software, and to permit third-parties to whom the Software is furnished to
 # do so, all subject to the following:
 #
 # The copyright notices in the Software and this entire statement, including
+# the above license grant, this restriction and the following disclaimer,
 # must be included in all copies of the Software, in whole or in part, and
 # all derivative works of the Software, unless such copies or derivative
 # works are solely in the form of machine-executable object code generated
@@ -243,6 +245,7 @@ class Exposure(object):
     """returns a normalized gaussian using scipy.signal"""
     return ss.gaussian(elements, sigma) / np.sum(ss.gaussian(elements, sigma))
 
+  # TODO: CHECK that I don't have to square the flx/con term.
   def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """trying to smooth, interpolate, and integrate the fit."""
     kernel = self.gaussKernel(elements, fsigma)
