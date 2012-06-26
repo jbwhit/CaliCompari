@@ -244,15 +244,14 @@ class Exposure(object):
   def gaussKernel(self, elements, sigma):
     """returns a normalized gaussian using scipy.signal"""
     return ss.gaussian(elements, sigma) / np.sum(ss.gaussian(elements, sigma))
-
-  # TODO: CHECK that I don't have to square the flx/con term.
+  
   def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """trying to smooth, interpolate, and integrate the fit."""
     kernel = self.gaussKernel(elements, fsigma)
     s = si.UnivariateSpline(self.Orders[order]['iow'], np.convolve(kernel, (self.Orders[order]['iof'] * fmultiple) + fslope * (self.Orders[order]['iow'] - np.average(self.Orders[order]['iow'])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav']])
-    return np.sum( ((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) / \
-                    (self.Orders[order]['err'] / self.Orders[order]['con'])) ** 2 )
+    return np.sum((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) ** 2) / \
+                    np.sum((self.Orders[order]['err'] / self.Orders[order]['con']) ** 2)
   
   def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
