@@ -38,7 +38,7 @@ import time
 import datetime
 from optparse import OptionParser
 import argparse
-from ConfigParser import RawConfigParser
+from ConfigParser import RawConfigParser, SafeConfigParser
 import random as ra
 import tempfile
 import itertools
@@ -88,9 +88,6 @@ class Exposure(object):
     self.fitGuess['initial'].update({ 'fwidth':200, 'fix_fwidth':True })
     self.fitGuess['initial'].update({ 'strategy':2 })
     self.fitResults = {}
-    self.tiltfitResults = {}
-    self.BinResults = {}
-    self.Bins = {}
     if self.exposureFile.split('.')[-1] == 'fits':
       print "A fits exposure file."
       self.Orders = {}
@@ -103,6 +100,7 @@ class Exposure(object):
           self.Orders[i]['wav'] = x.data[0]
           self.Orders[i]['flx'] = x.data[1]
           self.Orders[i]['err'] = x.data[2]
+          self.Orders[i]['pix'] = np.array(np.arange(len(self.Orders[i]['wav']))) 
         except:
           self.exposureHeader = hdu[-1].header
     else:
@@ -137,21 +135,27 @@ class Exposure(object):
   
   def cleanup(self,verbose=False):
     """mask out bad regions of the spectra"""
-    # Think about whether to overwrite the input files
+    parser = SafeConfigParser()
+    candidates = glob.glob('config*')
+    found = parser.read(candidates)
+    # Example config file setup. 
+    # [skylines]
+    # remove: 
+    #   5589.128    5589.1232
+    #   5865.454    5865.4529
+    wavekill = parser.get('skylines','remove')
     if verbose==True:
       print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     errorcutoff = 0.0
     sncutoff = 10.0
     for x in self.Orders:
-      ok = self.Orders[x]['err'] >= errorcutoff
-      ok2 = self.Orders[x]['flx']/self.Orders[x]['err'] >= sncutoff
-      for key in ['wav', 'flx', 'err']:
-        self.Orders[x][key] = self.Orders[x][key][(ok & ok2)]
-    # # TODO Deal with sky lines/known regions to exclude
-    # dummywav = cleanwav
-    # for x in zip(begin_kill_array, end_kill_array):
-    #   dummywav = [y for y in dummywav if not (y > x[0] and y < x[1])]
-    # finalindex = [np.argwhere(wav == x)[0][0] for x in dummywav]
+      masks = []
+      masks.append(self.Orders[x]['err'] > errorcutoff)
+      masks.append(self.Orders[x]['flx']/self.Orders[x]['err'] >= sncutoff)
+      for killLine in wavekill.splitlines():
+        if len(killLine) > 1:
+          masks.append(reduce(np.logical_or, [self.Orders['wav'] < float(killLine.split()[0]), self.Orders['wav'] > float(killLine.split()[1])]))
+      self.Orders[x]['mask'] = reduce(np.logical_and, masks)
     pass
   
   def continuumFit(self, knots=10, plot=False, verbose=False):
@@ -230,16 +234,6 @@ class Exposure(object):
     except:
       print "Serious problem with order:", order
     pass
-
-  # linear dispersion coefficient
-  # spectral line depth
-  # normalization: 
-  # 2nd-order dispersion coefficient
-  # width of main Gaussian IP
-  # width of box IP
-  # residuals
-  # plot kernel
-  # plot best fit between the two
 
   def gaussKernel(self, elements, sigma):
     """returns a normalized gaussian using scipy.signal"""
@@ -459,3 +453,24 @@ def main(argv=None):
 
 if __name__ == "__main__":
   main()
+  
+# Other ideas
+# linear dispersion coefficient
+# spectral line depth
+# normalization: 
+# 2nd-order dispersion coefficient
+# width of main Gaussian IP
+# width of box IP
+# residuals
+# plot kernel
+# plot best fit between the two
+
+# argsort for sorting bin wavelengths. # 
+# d=np.arange(10)
+# masks = [d>5, d % 2 == 0, d<8]
+# you can use reduce to combine all of them:
+# 
+# total_mask = reduce(np.logical_and, masks)
+# you can also use boolean operators explicitely if you need to manually choose the masks:
+# 
+# total_mask = masks[0] & masks[1] & masks[2]
