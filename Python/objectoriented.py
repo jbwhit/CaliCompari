@@ -62,6 +62,11 @@ c_light = spc.c
 # TODO make a flag that says whether each method is actually run.
 # TODO implement logging so everything is reproducible.
 
+# TODO create an 
+# exposure dictionary[order][wav/flx/err/pixel/masks/whateverelse]
+# fit dictionary
+# binFit dictionary
+
 help_message = '''
 Various limitations: 
 Must have an FTS spectrum w/o gaps
@@ -171,6 +176,14 @@ class Exposure(object):
       self.Orders[x]['con'][mask] = s(self.Orders[x]['wav'][mask]) # new array is made -- continuum
     pass
   
+  # def chop(self, edgebuffer=50):
+  #   """program chops off the offending beginning and ending few pixels of each order"""
+  #   for x in self.Orders:
+  #     for key in ['wav', 'flx', 'err', 'con']:
+  #       self.Orders[x][key] = self.Orders[x][key][edgebuffer:-edgebuffer]
+  #   print "Chopped", edgebuffer, "pixels."
+  #   pass
+  # 
   def newOverSample(self):
     """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
     Rename. """
@@ -366,12 +379,17 @@ class Exposure(object):
     """docstring for saveFIT"""
     with open(filename, 'wb') as fp:
       pickle.dump(self.fitResults, fp)
+      # pickle.dump(nextDict, fp)
+      # pickle.dump(bigDict, fp)
     pass
 
   def loadFIT(self, filename="fit.fits"):
     """docstring for loadFIT"""
     with open(filename, 'rb') as fp:
       self.loadfit = pickle.load(fp)
+      # d1 = pickle.load(fp)
+      # d2 = pickle.load(fp)
+      # d3 = pickle.load(fp)
     pass
   
   # def plotInitialGuess(self, order, fmultiple, fshift, fsigma, elements=1000, sigma=50):
