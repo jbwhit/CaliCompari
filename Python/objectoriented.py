@@ -154,7 +154,7 @@ class Exposure(object):
       masks.append(self.Orders[x]['flx']/self.Orders[x]['err'] >= sncutoff)
       for killLine in wavekill.splitlines():
         if len(killLine) > 1:
-          masks.append(reduce(np.logical_or, [self.Orders['wav'] < float(killLine.split()[0]), self.Orders['wav'] > float(killLine.split()[1])]))
+          masks.append(reduce(np.logical_or, [self.Orders[x]['wav'] < float(killLine.split()[0]), self.Orders[x]['wav'] > float(killLine.split()[1])]))
       self.Orders[x]['mask'] = reduce(np.logical_and, masks)
     pass
   
@@ -163,29 +163,23 @@ class Exposure(object):
     knots = 10
     edgeTolerance = 0.1
     for x in self.Orders:
-      s = si.LSQUnivariateSpline(self.Orders[x]['wav'],\
-                                self.Orders[x]['flx'],\
-                                np.linspace(self.Orders[x]['wav'][0]+edgeTolerance, self.Orders[x]['wav'][-1]-edgeTolerance, knots),\
-                                w=self.Orders[x]['err'])
-      self.Orders[x]['con'] = s(self.Orders[x]['wav']) # new array is made -- continuum
-    pass
-  
-  def chop(self, edgebuffer=50):
-    """program chops off the offending beginning and ending few pixels of each order"""
-    for x in self.Orders:
-      for key in ['wav', 'flx', 'err', 'con']:
-        self.Orders[x][key] = self.Orders[x][key][edgebuffer:-edgebuffer]
-    print "Chopped", edgebuffer, "pixels."
+      mask = self.Orders[x]['mask']
+      s = si.LSQUnivariateSpline(self.Orders[x]['wav'][mask],\
+                                self.Orders[x]['flx'][mask],\
+                                np.linspace(self.Orders[x]['wav'][mask][0]+edgeTolerance, self.Orders[x]['wav'][mask][-1]-edgeTolerance, knots),\
+                                w=self.Orders[x]['err'][mask])
+      self.Orders[x]['con'][mask] = s(self.Orders[x]['wav'][mask]) # new array is made -- continuum
     pass
   
   def newOverSample(self):
     """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
     Rename. """
     for x in self.Orders:
-      self.Orders[x]['mindel'] = self.Orders[x]['wav'][-1] - self.Orders[x]['wav'][0]
-      for i in range(len(self.Orders[x]['wav']) - 1):
-        if self.Orders[x]['mindel'] > self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]: 
-          self.Orders[x]['mindel'] = self.Orders[x]['wav'][i+1] - self.Orders[x]['wav'][i]
+      mask = self.Orders[x]['mask']
+      self.Orders[x]['mindel'] = self.Orders[x]['wav'][mask][-1] - self.Orders[x]['wav'][mask][0]
+      for i in range(len(self.Orders[x]['wav'][mask]) - 1):
+        if self.Orders[x]['mindel'] > self.Orders[x]['wav'][mask][i+1] - self.Orders[x]['wav'][mask][i]: 
+          self.Orders[x]['mindel'] = self.Orders[x]['wav'][mask][i+1] - self.Orders[x]['wav'][mask][i]
     pass
   
   def newfullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, binSize=350):
@@ -246,7 +240,8 @@ class Exposure(object):
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav']])
     return np.sum((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) ** 2) / \
                     np.sum((self.Orders[order]['err'] / self.Orders[order]['con']) ** 2)
-  
+
+  # TODO add masks to everything!
   def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
     lamb = np.average(self.Orders[order]['wav'])
