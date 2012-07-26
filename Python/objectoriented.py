@@ -177,14 +177,6 @@ class Exposure(object):
       self.Orders[x]['con'][mask] = s(self.Orders[x]['wav'][mask]) # new array is made -- continuum
     pass
   
-  # def chop(self, edgebuffer=50):
-  #   """program chops off the offending beginning and ending few pixels of each order"""
-  #   for x in self.Orders:
-  #     for key in ['wav', 'flx', 'err', 'con']:
-  #       self.Orders[x][key] = self.Orders[x][key][edgebuffer:-edgebuffer]
-  #   print "Chopped", edgebuffer, "pixels."
-  #   pass
-  # 
   def newOverSample(self):
     """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
     Rename. """
@@ -273,7 +265,6 @@ class Exposure(object):
     binAngstroms = lamb * binSize * 1000 / c_light
     temp = []
     mask = self.Orders[order]['mask']
-    # TODO check that this is correct -- gives right masking behavior. 
     # TODO make sure bin has 'enough' pixels to be useful.
     for x in range(int(1.0/overlap)):
       temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
@@ -389,10 +380,43 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
                     (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
 
+
+
+  def prettyResults(self):
+    self.Results = {}
+    for binSizeKey in self.fitResults.keys():
+      if binSizeKey == 'order':
+        continue
+      else:
+        self.Results[binSizeKey] = {}
+        for order in self.fitResults[binSizeKey].keys():
+          self.Results[binSizeKey][order] = {}
+          self.Results[binSizeKey][order]['avwav'] = []
+          self.Results[binSizeKey][order]['cal'] = []
+          self.Results[binSizeKey][order]['calerr'] = []
+          self.Results[binSizeKey][order]['R'] = []
+          self.Results[binSizeKey][order]['Rerr'] = []
+          for bin in self.fitResults[binSizeKey][order].keys():
+            if len(self.fitResults[binSizeKey][order][bin]) > 2:
+              self.Results[binSizeKey][order]['avwav'].append(self.fitResults[binSizeKey][order][bin]['avwav'])
+              self.Results[binSizeKey][order]['cal'].append(self.fitResults[binSizeKey][order][bin]['cal'])
+              self.Results[binSizeKey][order]['calerr'].append(self.fitResults[binSizeKey][order][bin]['calerr'])
+              self.Results[binSizeKey][order]['R'].append(self.fitResults[binSizeKey][order][bin]['R'])
+              self.Results[binSizeKey][order]['Rerr'].append(np.average([self.fitResults[binSizeKey][order][bin]['Rbig'], self.fitResults[binSizeKey][order][bin]['Rsmall']]))
+          shuffle = np.argsort(self.Results[binSizeKey][order]['avwav'])
+          self.Results[binSizeKey][order]['avwav'] = np.array(self.Results[binSizeKey][order]['avwav'])[shuffle]
+          self.Results[binSizeKey][order]['cal'] = np.array(self.Results[binSizeKey][order]['cal'])[shuffle]
+          self.Results[binSizeKey][order]['calerr'] = np.array(self.Results[binSizeKey][order]['calerr'])[shuffle]
+          self.Results[binSizeKey][order]['R'] = np.array(self.Results[binSizeKey][order]['R'])[shuffle]
+          self.Results[binSizeKey][order]['Rerr'] = np.array(self.Results[binSizeKey][order]['Rerr'])[shuffle]
+    pass
+  
   def saveFIT(self, filename="fit.fits"):
     """docstring for saveFIT"""
     with open(filename, 'wb') as fp:
+      pickle.dump(self.Results, fp)
       pickle.dump(self.fitResults, fp)
+      # pickle.dump(self.exposureHeader, fp)
       # pickle.dump(nextDict, fp)
       # pickle.dump(bigDict, fp)
     pass
@@ -400,7 +424,8 @@ class Exposure(object):
   def loadFIT(self, filename="fit.fits"):
     """docstring for loadFIT"""
     with open(filename, 'rb') as fp:
-      self.loadfit = pickle.load(fp)
+      self.loadResults = pickle.load(fp)
+      self.loadfitResults = pickle.load(fp)
       # d1 = pickle.load(fp)
       # d2 = pickle.load(fp)
       # d3 = pickle.load(fp)
