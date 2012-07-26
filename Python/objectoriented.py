@@ -280,14 +280,18 @@ class Exposure(object):
 
     np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
     iowTolerance = 2.0
-    self.Orders[order][binSize]['bins'] = {}
+    minPixelsPerBin = 100
+    # self.Orders[order][binSize] = {} # test1
     COUNTER = 0
     for edgearray in temp:
       for i in range(len(edgearray) - 1):
-        self.Orders[order][binSize]['bins'][COUNTER] = {}
-        self.Orders[order][binSize]['bins'][COUNTER]['ok'] = (self.Orders[order]['wav'] > edgearray[i]) & (self.Orders[order]['wav'] <= edgearray[i + 1])
-        self.Orders[order][binSize]['bins'][COUNTER]['iok'] = (self.Orders[order]['iow'] > edgearray[i] - iowTolerance) & (self.Orders[order]['iow'] <= edgearray[i + 1] + iowTolerance)
-        COUNTER += 1
+        if len(self.Orders[order]['wav'][(self.Orders[order]['wav'] > edgearray[i]) & (self.Orders[order]['wav'] <= edgearray[i + 1])]) > minPixelsPerBin:
+          self.Orders[order][binSize][COUNTER] = {}
+          self.Orders[order][binSize][COUNTER]['ok'] = (self.Orders[order]['wav'] > edgearray[i]) & (self.Orders[order]['wav'] <= edgearray[i + 1])
+          self.Orders[order][binSize][COUNTER]['iok'] = (self.Orders[order]['iow'] > edgearray[i] - iowTolerance) & (self.Orders[order]['iow'] <= edgearray[i + 1] + iowTolerance)
+          COUNTER += 1
+        else:
+          print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
     pass
   
   def newfullOrderBinShift(self, order=7, binSize=350):
@@ -301,10 +305,10 @@ class Exposure(object):
       type(self.fitResults[binSize][order])
     except:
       self.fitResults[binSize][order] = {}
-    try:
-      type(self.fitResults[binSize][order]['bins'])
-    except:
-      self.fitResults[binSize][order]['bins'] = {}
+    # try: # test1
+    #   type(self.fitResults[binSize][order])
+    # except:
+    #   self.fitResults[binSize][order] = {}
     try:
       type(self.fitGuess['order'])
     except:
@@ -320,8 +324,8 @@ class Exposure(object):
     self.fitGuess['order'][order] = self.fitGuess['initial']
     self.fitGuess['order'][order].update(self.fitResults['order'][order]['values'])
     self.fitGuess['order'][order].update({ 'elements':int(10.0 * self.fitResults['order'][order]['values']['fsigma']) })
-    for singlebin in self.Orders[order][binSize]['bins']:
-      self.fitResults[binSize][order]['bins'][singlebin] = {}
+    for singlebin in self.Orders[order][binSize]:
+      self.fitResults[binSize][order][singlebin] = {}
       self.newsmallBinShift(order, binSize, singlebin)
     pass
 
@@ -342,13 +346,13 @@ class Exposure(object):
     try: 
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", bin
       m.migrad()
-      self.fitResults[binSize][order]['bins'][bin]['values'] = m.values
-      self.fitResults[binSize][order]['bins'][bin]['errors'] = m.errors
+      self.fitResults[binSize][order][bin]['values'] = m.values
+      self.fitResults[binSize][order][bin]['errors'] = m.errors
       # TODO create a logical_and combination of the bin and total_mask
       mask = self.Orders[order]['mask']
-      ok = reduce(np.logical_and, [self.Orders[order][binSize]['bins'][bin]['ok'], mask])
-      iok = self.Orders[order][binSize]['bins'][bin]['iok']
-      elements = self.fitResults[binSize][order]['bins'][bin]['values']['elements']
+      ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+      iok = self.Orders[order][binSize][bin]['iok']
+      elements = self.fitResults[binSize][order][bin]['values']['elements']
       lamb = np.average(self.Orders[order]['wav'][ok])
       cal = m.values['fshift'] * c_light / lamb
       calerr = m.errors['fshift'] * c_light / lamb
@@ -361,12 +365,12 @@ class Exposure(object):
       negFTSsigma = FTSsigma - m.errors['fsigma'] / elements # negative error
       Rsmall = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * posFTSsigma)
       Rbig = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * negFTSsigma)
-      self.fitResults[binSize][order]['bins'][bin]['avwav'] = lamb
-      self.fitResults[binSize][order]['bins'][bin]['cal'] = cal
-      self.fitResults[binSize][order]['bins'][bin]['calerr'] = calerr
-      self.fitResults[binSize][order]['bins'][bin]['R'] = R
-      self.fitResults[binSize][order]['bins'][bin]['Rsmall'] = R - Rsmall
-      self.fitResults[binSize][order]['bins'][bin]['Rbig'] = Rbig - R
+      self.fitResults[binSize][order][bin]['avwav'] = lamb
+      self.fitResults[binSize][order][bin]['cal'] = cal
+      self.fitResults[binSize][order][bin]['calerr'] = calerr
+      self.fitResults[binSize][order][bin]['R'] = R
+      self.fitResults[binSize][order][bin]['Rsmall'] = R - Rsmall
+      self.fitResults[binSize][order][bin]['Rbig'] = Rbig - R
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
     except:
       # TODO flag bin as bad.
@@ -377,9 +381,9 @@ class Exposure(object):
     """Fit like shift with the addition of a slope across the order."""
     mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
-    # ok = self.Orders[order][binSize]['bins'][bin]['ok']
-    ok = reduce(np.logical_and, [self.Orders[order][binSize]['bins'][bin]['ok'], mask])
-    iok = self.Orders[order][binSize]['bins'][bin]['iok']
+    # ok = self.Orders[order][binSize][bin]['ok']
+    ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+    iok = self.Orders[order][binSize][bin]['iok']
     s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
     return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
@@ -420,57 +424,7 @@ class Exposure(object):
     pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
     pass
   
-  # def plotTiltFitResults(self, order, fmultiple, fshift, fsigma, fslope, elements=1000, plotResiduals=False, **kwargs):
-  #   """docstring for plotTiltFitResults"""
-  #   kernel = self.gaussKernel(elements, fsigma)
-  #   tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, (self.Orders[order]['oiof'] * fmultiple) + fslope * (self.Orders[order]['oiow'] - np.average(self.Orders[order]['oiow'])), mode='same'))
-  #   overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
-  #   pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-  #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
-  #   if plotResiduals == True:
-  #     pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'] - overflx, color="red") # data - model
-  #   pass
-  # 
-  # def plotBinTiltFitResults(self, order, fmultiple, fshift, fsigma, fslope, binSize, binNumber, elements=1000, plotResiduals=False, **kwargs):
-  #   """docstring for plotBinTiltFitResults"""
-  #   kernel = self.gaussKernel(elements, fsigma)
-  #   ok = self.Orders[order][binSize]['bins'][binNumber]['ok']
-  #   iok = self.Orders[order][binSize]['bins'][binNumber]['iok']
-  #   tck = si.splrep(self.Orders[order]['oiow'][iok], np.convolve(kernel, (self.Orders[order]['oiof'][iok] * fmultiple) + fslope * (self.Orders[order]['oiow'][iok] - np.average(self.Orders[order]['oiow'][iok])), mode='same'))
-  #   overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav'][ok]) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'][ok])), axis=1)
-  #   pl.plot(self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok], color="black", linewidth=2.0)
-  #   pl.plot(np.average(self.Orders[order]['overwav'][ok], axis=1), overflx)
-  #   if plotResiduals == True: 
-  #     pl.plot(self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok] - overflx, color="red")
-  #   pass
-  # 
-  # def plotOrderBinTiltFitResults(self):
-  #   """docstring for plotOrderBinTiltFitResults"""
-  #   # TODO test for whether order fit; then plot that order
-  #   for x in range(7):
-  #     ceres.plotBinTiltFitResults(order=7, binNumber=x, **ceres.fitResults[350][7]['bins'][x])
-  #   pass
-  #   
-  # def expplot(self):
-  #   """docstring for plot"""
-  #   print "working..."
-  #   for x in self.Orders:
-  #     pl.plot(self.Orders[x]['wav'], self.Orders[x]['flx'])
-  #   pl.savefig('ordersinexposure.pdf')
-  #   pl.close()
-  #   pass
-  # 
-  # def expftsplot(self):
-  #   """docstring for expftsplot"""
-  #   for x in self.Orders:
-  #     if 'iow' in self.Orders[x]:
-  #       pl.plot(self.Orders[x]['wav'], self.Orders[x]['flx'])
-  #       pl.plot(self.Orders[x]['iow'], self.Orders[x]['iof'])
-  #   pl.savefig('ftsandexposure.pdf')
-  #   pl.close()
-  #   pass  
-  # pass
-
+# test getting rid of 'bins'
 def main(argv=None):
   pass
 
