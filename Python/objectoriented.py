@@ -169,6 +169,7 @@ class Exposure(object):
     edgeTolerance = 0.1
     for x in self.Orders:
       mask = self.Orders[x]['mask']
+      self.Orders[x]['con'] = np.zeros(len(self.Orders[x]['wav']))
       s = si.LSQUnivariateSpline(self.Orders[x]['wav'][mask],\
                                 self.Orders[x]['flx'][mask],\
                                 np.linspace(self.Orders[x]['wav'][mask][0]+edgeTolerance, self.Orders[x]['wav'][mask][-1]-edgeTolerance, knots),\
@@ -248,16 +249,18 @@ class Exposure(object):
   
   def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """trying to smooth, interpolate, and integrate the fit."""
+    mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
     s = si.UnivariateSpline(self.Orders[order]['iow'], np.convolve(kernel, (self.Orders[order]['iof'] * fmultiple) + fslope * (self.Orders[order]['iow'] - np.average(self.Orders[order]['iow'])), mode='same'), s=0)
-    overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav']])
-    return np.sum((overflx - self.Orders[order]['flx'] / self.Orders[order]['con']) ** 2) / \
-                    np.sum((self.Orders[order]['err'] / self.Orders[order]['con']) ** 2)
+    overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][mask]])
+    return np.sum((overflx - self.Orders[order]['flx'][mask] / self.Orders[order]['con'][mask]) ** 2) / \
+                    np.sum((self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask]) ** 2)
 
   # TODO add masks to everything!
   def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
-    lamb = np.average(self.Orders[order]['wav'])
+    mask = self.Orders[order]['mask']
+    lamb = np.average(self.Orders[order]['wav'][mask])
     try:
       type(self.fitResults[binSize])
     except:
@@ -269,10 +272,13 @@ class Exposure(object):
       self.Orders[order][binSize] = {}
     binAngstroms = lamb * binSize * 1000 / c_light
     temp = []
+    mask = self.Orders[order]['mask']
+    # TODO check that this is correct -- gives right masking behavior. 
+    # TODO make sure bin has 'enough' pixels to be useful.
     for x in range(int(1.0/overlap)):
-      temp.append(np.arange(self.Orders[order]['wav'][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][-1] + overlap * x * binAngstroms, binAngstroms))
+      temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
 
-    np.append(temp[0], self.Orders[order]['wav'][-1]) # add last wavelength point to first bin edges array
+    np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
     iowTolerance = 2.0
     self.Orders[order][binSize]['bins'] = {}
     COUNTER = 0
@@ -338,7 +344,9 @@ class Exposure(object):
       m.migrad()
       self.fitResults[binSize][order]['bins'][bin]['values'] = m.values
       self.fitResults[binSize][order]['bins'][bin]['errors'] = m.errors
-      ok = self.Orders[order][binSize]['bins'][bin]['ok']
+      # TODO create a logical_and combination of the bin and total_mask
+      mask = self.Orders[order]['mask']
+      ok = reduce(np.logical_and, [self.Orders[order][binSize]['bins'][bin]['ok'], mask])
       iok = self.Orders[order][binSize]['bins'][bin]['iok']
       elements = self.fitResults[binSize][order]['bins'][bin]['values']['elements']
       lamb = np.average(self.Orders[order]['wav'][ok])
@@ -367,8 +375,10 @@ class Exposure(object):
 
   def newbinshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """Fit like shift with the addition of a slope across the order."""
+    mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
-    ok = self.Orders[order][binSize]['bins'][bin]['ok']
+    # ok = self.Orders[order][binSize]['bins'][bin]['ok']
+    ok = reduce(np.logical_and, [self.Orders[order][binSize]['bins'][bin]['ok'], mask])
     iok = self.Orders[order][binSize]['bins'][bin]['iok']
     s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
