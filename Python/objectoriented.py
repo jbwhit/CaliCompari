@@ -55,7 +55,6 @@ import scipy.constants as spc
 
 c_light = spc.c
 
-# TODO ceres.cleanup(): invalid value encountered in divide
 # TODO wavelength cut-out regions
 # TODO minimum bin-size requirement
 # TODO think about integration interval (+/- 1/2 mindel)
@@ -108,6 +107,9 @@ class Exposure(object):
           self.Orders[i]['pix'] = np.array(np.arange(len(self.Orders[i]['wav']))) 
         except:
           self.exposureHeader = hdu[-1].header
+      for field in self.Orders.keys():
+        if len(self.Orders[field]) < 1:
+          del(self.Orders[field])
     else:
       print "Not a fits file.", self.exposureFile
     pass
@@ -152,10 +154,12 @@ class Exposure(object):
     if verbose==True:
       print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     errorcutoff = 0.0
+    flxcutoff = 0.0
     sncutoff = 10.0
     for x in self.Orders:
       masks = []
       masks.append(self.Orders[x]['err'] > errorcutoff)
+      masks.append(self.Orders[x]['flx'] > flxcutoff)
       masks.append(self.Orders[x]['flx']/self.Orders[x]['err'] >= sncutoff)
       for killLine in wavekill.splitlines():
         if len(killLine) > 1:
