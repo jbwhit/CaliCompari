@@ -249,8 +249,8 @@ class Exposure(object):
     kernel = self.gaussKernel(elements, fsigma)
     s = si.UnivariateSpline(self.Orders[order]['iow'], np.convolve(kernel, (self.Orders[order]['iof'] * fmultiple) + fslope * (self.Orders[order]['iow'] - np.average(self.Orders[order]['iow'])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][mask]])
-    return np.sum((overflx - self.Orders[order]['flx'][mask] / self.Orders[order]['con'][mask]) ** 2) / \
-                    np.sum((self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask]) ** 2)
+    return np.sum( ((overflx - self.Orders[order]['flx'][mask] / self.Orders[order]['con'][mask])  / \
+                    (self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask])) ** 2)
 
   # TODO add masks to everything!
   def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
