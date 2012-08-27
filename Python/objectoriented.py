@@ -65,6 +65,7 @@ c_light = spc.c
 # exposure dictionary[order][wav/flx/err/pixel/masks/whateverelse]
 # fit dictionary
 # binFit dictionary
+# Find a way to save original exposure header and original ThAr calibration header
 
 help_message = '''
 Various limitations: 
@@ -141,15 +142,16 @@ class Exposure(object):
     pass
   
   def cleanup(self,verbose=False):
-    """mask out bad regions of the spectra"""
+    """mask out bad regions of the spectra
+    Example config file setup. 
+    [skylines]
+    remove: 
+      5589.128    5589.132
+      5865.454    5865.459
+    """
     parser = SafeConfigParser()
     candidates = glob.glob('config*')
     found = parser.read(candidates)
-    # Example config file setup. 
-    # [skylines]
-    # remove: 
-    #   5589.128    5589.1232
-    #   5865.454    5865.4529
     wavekill = parser.get('skylines','remove')
     if verbose==True:
       print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
@@ -253,7 +255,7 @@ class Exposure(object):
                     (self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask])) ** 2)
 
   # TODO add masks to everything!
-  def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5):
+  def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
     mask = self.Orders[order]['mask']
     lamb = np.average(self.Orders[order]['wav'][mask])
@@ -274,9 +276,8 @@ class Exposure(object):
       temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
 
     np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
-    iowTolerance = 2.0
-    minPixelsPerBin = 100
-    # self.Orders[order][binSize] = {} # test1
+    iowTolerance = iowTolerance
+    minPixelsPerBin = minPixelsPerBin
     COUNTER = 0
     for edgearray in temp:
       for i in range(len(edgearray) - 1):
@@ -300,10 +301,6 @@ class Exposure(object):
       type(self.fitResults[binSize][order])
     except:
       self.fitResults[binSize][order] = {}
-    # try: # test1
-    #   type(self.fitResults[binSize][order])
-    # except:
-    #   self.fitResults[binSize][order] = {}
     try:
       type(self.fitGuess['order'])
     except:
@@ -326,7 +323,7 @@ class Exposure(object):
 
   def newsmallBinShift(self, order=7, binSize=350, bin=2, veryVerbose=False, robustSearch=False):
     """docstring for smallBinShift"""
-    # check that the full order solution has run.
+    # TODO check that the full order solution has run.
     try:
       type(self.fitResults['order'][order]['values'])
     except:
@@ -343,12 +340,12 @@ class Exposure(object):
       m.migrad()
       self.fitResults[binSize][order][bin]['values'] = m.values
       self.fitResults[binSize][order][bin]['errors'] = m.errors
-      # TODO create a logical_and combination of the bin and total_mask
       mask = self.Orders[order]['mask']
       ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
       iok = self.Orders[order][binSize][bin]['iok']
       elements = self.fitResults[binSize][order][bin]['values']['elements']
       lamb = np.average(self.Orders[order]['wav'][ok])
+      avpix = np.average(self.Orders[order]['pix'][ok])
       cal = m.values['fshift'] * c_light / lamb
       calerr = m.errors['fshift'] * c_light / lamb
       midpointFTS = np.argmin(np.abs(self.Orders[order]['iow'][iok] - lamb))
@@ -366,6 +363,7 @@ class Exposure(object):
       self.fitResults[binSize][order][bin]['R'] = R
       self.fitResults[binSize][order][bin]['Rsmall'] = R - Rsmall
       self.fitResults[binSize][order][bin]['Rbig'] = Rbig - R
+      self.fitResults[binSize][order][bin]['avpix'] = avpix
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
     except:
       # TODO flag bin as bad.
@@ -388,6 +386,7 @@ class Exposure(object):
 
   def prettyResults(self):
     self.Results = {}
+    # TODO add pixel info to this. 
     for binSizeKey in self.fitResults.keys():
       if binSizeKey == 'order':
         continue
@@ -420,7 +419,7 @@ class Exposure(object):
     with open(filename, 'wb') as fp:
       pickle.dump(self.Results, fp)
       pickle.dump(self.fitResults, fp)
-      # pickle.dump(self.exposureHeader, fp)
+      # TODO pickle.dump(self.exposureHeader, fp)
       # pickle.dump(nextDict, fp)
       # pickle.dump(bigDict, fp)
     pass
@@ -434,6 +433,11 @@ class Exposure(object):
       # d2 = pickle.load(fp)
       # d3 = pickle.load(fp)
     pass
+  # TODO 
+  # scienceExposure = dict(HD138527.exposureHeader)
+  # if scienceExposure['INSTRUME'] == 'HDS':
+  #   print "HDS!"
+  # calibrationExposure = dict()
   
   # def plotInitialGuess(self, order, fmultiple, fshift, fsigma, elements=1000, sigma=50):
   #   """docstring for plotInitialGuess"""
@@ -453,7 +457,6 @@ class Exposure(object):
     pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
     pass
   
-# test getting rid of 'bins'
 def main(argv=None):
   pass
 
