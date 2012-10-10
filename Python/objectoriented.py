@@ -1,4 +1,5 @@
-#!/home/ssi/jwhitmore/progs/epd-7.1-2-rh5-x86_64/bin/python
+#!/usr/bin/env python
+
 # Copyright Jonathan Whitmore
 # Distributed under the Boost Software License, Version 1.0.
 #
@@ -183,7 +184,7 @@ class Exposure(object):
       self.Orders[x]['con'][mask] = s(self.Orders[x]['wav'][mask]) # new array is made -- continuum
     pass
   
-  def newOverSample(self):
+  def OverSample(self):
     """sets the minimum spacing in the telescope spectra (mindel) for each order over the whole exposure.
     Rename. """
     for x in self.Orders:
@@ -194,23 +195,23 @@ class Exposure(object):
           self.Orders[x]['mindel'] = self.Orders[x]['wav'][mask][i+1] - self.Orders[x]['wav'][mask][i]
     pass
   
-  def newfullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, binSize=350):
+  def fullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, binSize=350):
     """docstring for fullExposureShift"""
     starttime=datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     for x in self.Orders:
       if 'iow' in self.Orders[x]:
         print "Working on order: ", x
-        self.newCreateBinArrays(order=x, binSize=binSize) # new!
+        self.CreateBinArrays(order=x, binSize=binSize) # new!
         try:
-          self.newOrderShiftandTilt(order=x, veryVerbose=veryVerbose) # new!
-          self.newfullOrderBinShift(order=x, binSize=binSize)
+          self.OrderShiftandTilt(order=x, veryVerbose=veryVerbose) # new!
+          self.fullOrderBinShift(order=x, binSize=binSize)
         except:
           print "Order or bin failed."
     print "Finished working on exposure."
     print "Started: ", starttime, "Ended: ", datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     pass
 
-  def newOrderShiftandTilt(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
+  def OrderShiftandTilt(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
     """docstring for dictionaryShift"""
     try:
       type(self.fitResults['order'])
@@ -221,7 +222,7 @@ class Exposure(object):
     except:
       self.fitResults['order'][order] = {}
     try:
-      m = mi.Minuit(self.newshiftandtilt, order=order, fix_order=True, **self.fitGuess['initial'])
+      m = mi.Minuit(self.shiftandtilt, order=order, fix_order=True, **self.fitGuess['initial'])
       if veryVerbose==True:
         m.printMode=1
       if robustSearch==True:
@@ -245,7 +246,7 @@ class Exposure(object):
     """returns a normalized gaussian using scipy.signal"""
     return ss.gaussian(elements, sigma) / np.sum(ss.gaussian(elements, sigma))
   
-  def newshiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+  def shiftandtilt(self, order, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """trying to smooth, interpolate, and integrate the fit."""
     mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
@@ -255,7 +256,7 @@ class Exposure(object):
                     (self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask])) ** 2)
 
   # TODO add masks to everything!
-  def newCreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
+  def CreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
     mask = self.Orders[order]['mask']
     lamb = np.average(self.Orders[order]['wav'][mask])
@@ -274,7 +275,6 @@ class Exposure(object):
     # TODO make sure bin has 'enough' pixels to be useful.
     for x in range(int(1.0/overlap)):
       temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
-
     np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
     iowTolerance = iowTolerance
     minPixelsPerBin = minPixelsPerBin
@@ -290,7 +290,7 @@ class Exposure(object):
           print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
     pass
   
-  def newfullOrderBinShift(self, order=7, binSize=350):
+  def fullOrderBinShift(self, order=7, binSize=350):
     """docstring for fullOrderBinShift"""
     # TODO check if createBinArrays has been run; if not; run first...
     try:
@@ -318,17 +318,17 @@ class Exposure(object):
     self.fitGuess['order'][order].update({ 'elements':int(10.0 * self.fitResults['order'][order]['values']['fsigma']) })
     for singlebin in self.Orders[order][binSize]:
       self.fitResults[binSize][order][singlebin] = {}
-      self.newsmallBinShift(order, binSize, singlebin)
+      self.smallBinShift(order, binSize, singlebin)
     pass
 
-  def newsmallBinShift(self, order=7, binSize=350, bin=2, veryVerbose=False, robustSearch=False):
+  def smallBinShift(self, order=7, binSize=350, bin=2, veryVerbose=False, robustSearch=False):
     """docstring for smallBinShift"""
     # TODO check that the full order solution has run.
     try:
       type(self.fitResults['order'][order]['values'])
     except:
       print "It doesn't look like the full order was run... "
-    m = mi.Minuit(self.newbinshiftandtilt, order=order, binSize=binSize, bin=bin, fix_order=True, fix_binSize=True, fix_bin=True, **self.fitGuess['order'][order])
+    m = mi.Minuit(self.binshiftandtilt, order=order, binSize=binSize, bin=bin, fix_order=True, fix_binSize=True, fix_bin=True, **self.fitGuess['order'][order])
     if veryVerbose==True:
       m.printMode=1
     if robustSearch==True:
@@ -370,7 +370,7 @@ class Exposure(object):
       print "Serious problem with bin:", bin
     pass
 
-  def newbinshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+  def binshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """Fit like shift with the addition of a slope across the order."""
     mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
@@ -381,8 +381,6 @@ class Exposure(object):
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
     return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
                     (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
-
-
 
   def prettyResults(self):
     self.Results = {}
