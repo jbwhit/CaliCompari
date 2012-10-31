@@ -87,9 +87,10 @@ class Exposure(object):
     self.calibrationFile = calibrationFile # Calibration File
     self.fitGuess = {}
     self.fitGuess['initial'] = { 'fshift':0.002, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
-    self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,2000) ,'err_fsigma':5 })
+    self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,30.0) ,'err_fsigma':0.5 })
     self.fitGuess['initial'].update({ 'fmultiple':50.25, 'fix_fmultiple':False, 'limit_fmultiple':(0.1, 100.0) ,'err_fmultiple':0.2 })
-    self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':True, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
+    # self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':True, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
+    self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':False, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
     self.fitGuess['initial'].update({ 'elements':100, 'fix_elements':True })
     self.fitGuess['initial'].update({ 'fwidth':200, 'fix_fwidth':True })
     self.fitGuess['initial'].update({ 'strategy':2 })
@@ -106,7 +107,7 @@ class Exposure(object):
           self.Orders[i]['wav'] = x.data[0]
           self.Orders[i]['flx'] = x.data[1]
           self.Orders[i]['err'] = x.data[2]
-          self.Orders[i]['pix'] = np.array(np.arange(len(self.Orders[i]['wav']))) 
+          self.Orders[i]['pix'] = np.arange(len(self.Orders[i]['wav']))
         except:
           self.exposureHeader = hdu[-1].header
       for field in self.Orders.keys():
@@ -129,7 +130,7 @@ class Exposure(object):
     except:
       print "Consider saving a faster-loading calibration file."
       iow, iof = np.loadtxt(self.calibrationFile, unpack='True')
-    print iow[0], iow[-1]
+    print "Reference FTS wavelength range:", iow[0], iow[-1]
     for x in self.Orders:
       if (self.Orders[x]['wav'][0] > iow[0] + 40.0) & (self.Orders[x]['wav'][-1] < iow[-1] - 150.0):
         try:
@@ -139,7 +140,7 @@ class Exposure(object):
             self.Orders[x]['iof'] = iof[ok]
           "Reference spectra worked"
         except:
-          print "Outside overlap."
+          print "Order", x, "is outside overlap with reference FTS."
     pass
   
   def cleanup(self,verbose=False):
@@ -255,6 +256,7 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'][mask] / self.Orders[order]['con'][mask])  / \
                     (self.Orders[order]['err'][mask] / self.Orders[order]['con'][mask])) ** 2)
 
+
   # TODO add masks to everything!
   def CreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
     """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
@@ -321,6 +323,7 @@ class Exposure(object):
       self.smallBinShift(order, binSize, singlebin)
     pass
 
+
   def smallBinShift(self, order=7, binSize=350, bin=2, veryVerbose=False, robustSearch=False):
     """docstring for smallBinShift"""
     # TODO check that the full order solution has run.
@@ -374,7 +377,6 @@ class Exposure(object):
     """Fit like shift with the addition of a slope across the order."""
     mask = self.Orders[order]['mask']
     kernel = self.gaussKernel(elements, fsigma)
-    # ok = self.Orders[order][binSize][bin]['ok']
     ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
     iok = self.Orders[order][binSize][bin]['iok']
     s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
@@ -382,6 +384,18 @@ class Exposure(object):
     return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
                     (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
 
+  def rewritebinshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+    """Same as before but returns a tuple of results"""
+    mask = self.Orders[order]['mask']
+    kernel = self.gaussKernel(elements, fsigma)
+    ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+    iok = self.Orders[order][binSize][bin]['iok']
+    s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
+    overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
+    return self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok], self.Orders[order]['err'][ok], self.Orders[order]['con'][ok], self.Orders[order]['pix'][ok], overflx
+  
+  # TODO save data + masks for each order
+  # plot(rewritebinshiftandtilt(fitResults)[0],)
   def prettyResults(self):
     self.Results = {}
     # TODO add pixel info to this. 
@@ -411,7 +425,20 @@ class Exposure(object):
           self.Results[binSizeKey][order]['R'] = np.array(self.Results[binSizeKey][order]['R'])[shuffle]
           self.Results[binSizeKey][order]['Rerr'] = np.array(self.Results[binSizeKey][order]['Rerr'])[shuffle]
     pass
-  
+
+  # minor save
+  def smallSave(self, filename='small.p'):
+    """docstring for smallSave"""
+    with open(filename, 'wb') as fp:
+      pickle.dump(self.Results, fp)
+    pass
+  # full save
+  def bigSave(self, filename='big.p'):
+    """docstring for bigSave"""
+    with open(filename, 'wb') as fp:
+      pickle.dump(self.fitResults, fp)
+    pass
+
   def saveFIT(self, filename="fit.fits"):
     """docstring for saveFIT"""
     with open(filename, 'wb') as fp:
@@ -436,24 +463,55 @@ class Exposure(object):
   # if scienceExposure['INSTRUME'] == 'HDS':
   #   print "HDS!"
   # calibrationExposure = dict()
+  # def binshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+  #   """Fit like shift with the addition of a slope across the order."""
+  #   mask = self.Orders[order]['mask']
+  #   kernel = self.gaussKernel(elements, fsigma)
+  #   ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+  #   iok = self.Orders[order][binSize][bin]['iok']
+  #   s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
+  #   overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
+  #   return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
+  #                   (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
   
-  # def plotInitialGuess(self, order, fmultiple, fshift, fsigma, elements=1000, sigma=50):
-  #   """docstring for plotInitialGuess"""
+  def plotbinsinorder(self, order, binSize=350):
+    """docstring for plotbinsinorder"""
+    for bin in self.fitResults[350][order]:
+      elements = self.fitResults[binSize][order][bin]['values']['elements']
+      fmultiple = self.fitResults[binSize][order][bin]['values']['fmultiple']
+      fshift = self.fitResults[binSize][order][bin]['values']['fshift']
+      fsigma = self.fitResults[binSize][order][bin]['values']['fsigma']
+      fslope = self.fitResults[binSize][order][bin]['values']['fslope']
+      mask = self.Orders[order]['mask']
+      kernel = self.gaussKernel(elements, fsigma)
+      ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+      iok = self.Orders[order][binSize][bin]['iok']
+      s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
+      overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
+      pl.plot(self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok]/self.Orders[order]['con'][ok], color="black", linewidth=2.0)
+      pl.plot(self.Orders[order]['wav'][ok], overflx)
+    pass
+  
+  def plotBinFit(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
+    """docstring for plotBinFit"""
+    mask = self.Orders[order]['mask']
+    kernel = self.gaussKernel(elements, fsigma)
+    ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+    iok = self.Orders[order][binSize][bin]['iok']
+    s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
+    overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
+    pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
+    pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
+    pass
+    
+  # def plotFitResults(self, order, fmultiple, fshift, fsigma, elements=1000, **kwargs):
+  #   """docstring for plotFitResults"""
   #   kernel = self.gaussKernel(elements, fsigma)
   #   tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, self.Orders[order]['oiof'] * fmultiple, mode='same'))
   #   overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
   #   pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-  #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
+  #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
   #   pass
-  # 
-  def plotFitResults(self, order, fmultiple, fshift, fsigma, elements=1000, **kwargs):
-    """docstring for plotFitResults"""
-    kernel = self.gaussKernel(elements, fsigma)
-    tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, self.Orders[order]['oiof'] * fmultiple, mode='same'))
-    overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
-    pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-    pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
-    pass
   
 def main(argv=None):
   pass
