@@ -377,7 +377,24 @@ class Exposure(object):
       self.fitResults[binSize][order][bin]['converged'] = False
       print "Serious problem with bin:", bin
     pass
-
+  
+  def binShiftandTilt(self, elements, fsigma, fmultiple, fshift, fslope, order, binSize, bin, **kwargs):
+    """For input values the FTS is transformed by the following:
+          fshift: shifted by angstroms
+          fslope: overall slope applied
+          fmultiple: overall multiplicative factor
+      returns the resultant flux (obeying proper masks applied).
+    """
+    telescopeMask = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
+    FTSMask = self.Orders[order][binSize][bin]['iok']
+    maskediow = self.Orders[order]['iow'][FTSMask]
+    maskediof = self.Orders[order]['iof'][FTSMask]
+    mindel = self.Orders[order]['mindel']
+    maskedwav = self.Orders[order]['wav'][telescopeMask]
+    spline = si.UnivariateSpline(maskediow, np.convolve(self.gaussKernel(elements, fsigma), (maskediof * fmultiple) + \
+                                 fslope * (maskediow - np.average(maskediow)), mode='same'), s=0)
+    return np.array([spline.integral(x - mindel/2.0 + fshift, x + mindel/2.0 + fshift) for x in maskedwav])
+  
   def binshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """Fit like shift with the addition of a slope across the order."""
     mask = self.Orders[order]['mask']
@@ -398,12 +415,15 @@ class Exposure(object):
     s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
     return self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok], self.Orders[order]['err'][ok], self.Orders[order]['con'][ok], self.Orders[order]['pix'][ok], overflx
-  
+    
+  # pseudo-code 
+  # def FTSTweak(order, binSize, bin):
+  # def telescopeTweak(order, binSize, bin):
+
   # TODO save data + masks for each order
   # plot(rewritebinshiftandtilt(fitResults)[0],)
   def prettyResults(self):
     self.Results = {}
-    # TODO add pixel info to this. 
     for binSizeKey in self.fitResults.keys():
       if binSizeKey == 'order':
         continue
@@ -416,6 +436,7 @@ class Exposure(object):
           self.Results[binSizeKey][order]['calerr'] = []
           self.Results[binSizeKey][order]['R'] = []
           self.Results[binSizeKey][order]['Rerr'] = []
+          self.Results[binSizeKey][order]['avpix'] = []
           for bin in self.fitResults[binSizeKey][order].keys():
             if len(self.fitResults[binSizeKey][order][bin]) > 2:
               self.Results[binSizeKey][order]['avwav'].append(self.fitResults[binSizeKey][order][bin]['avwav'])
@@ -423,12 +444,14 @@ class Exposure(object):
               self.Results[binSizeKey][order]['calerr'].append(self.fitResults[binSizeKey][order][bin]['calerr'])
               self.Results[binSizeKey][order]['R'].append(self.fitResults[binSizeKey][order][bin]['R'])
               self.Results[binSizeKey][order]['Rerr'].append(np.average([self.fitResults[binSizeKey][order][bin]['Rbig'], self.fitResults[binSizeKey][order][bin]['Rsmall']]))
+              self.Results[binSizeKey][order]['avpix'].append(self.fitResults[binSizeKey][order][bin]['avpix'])
           shuffle = np.argsort(self.Results[binSizeKey][order]['avwav'])
           self.Results[binSizeKey][order]['avwav'] = np.array(self.Results[binSizeKey][order]['avwav'])[shuffle]
           self.Results[binSizeKey][order]['cal'] = np.array(self.Results[binSizeKey][order]['cal'])[shuffle]
           self.Results[binSizeKey][order]['calerr'] = np.array(self.Results[binSizeKey][order]['calerr'])[shuffle]
           self.Results[binSizeKey][order]['R'] = np.array(self.Results[binSizeKey][order]['R'])[shuffle]
           self.Results[binSizeKey][order]['Rerr'] = np.array(self.Results[binSizeKey][order]['Rerr'])[shuffle]
+          self.Results[binSizeKey][order]['avpix'] = np.array(self.Results[binSizeKey][order]['avpix'])[shuffle]
     pass
 
   # minor save
