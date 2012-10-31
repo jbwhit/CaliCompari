@@ -154,7 +154,10 @@ class Exposure(object):
     parser = SafeConfigParser()
     candidates = glob.glob('config*')
     found = parser.read(candidates)
-    wavekill = parser.get('skylines','remove')
+    try:
+      wavekill = parser.get('skylines','remove')
+    except:
+      print "Warning: not removing skylines (if you want this create a config.wavekill file)."
     if verbose==True:
       print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
     errorcutoff = 0.0
@@ -165,9 +168,12 @@ class Exposure(object):
       masks.append(self.Orders[x]['err'] > errorcutoff)
       masks.append(self.Orders[x]['flx'] > flxcutoff)
       masks.append(self.Orders[x]['flx']/self.Orders[x]['err'] >= sncutoff)
-      for killLine in wavekill.splitlines():
-        if len(killLine) > 1:
-          masks.append(reduce(np.logical_or, [self.Orders[x]['wav'] < float(killLine.split()[0]), self.Orders[x]['wav'] > float(killLine.split()[1])]))
+      try:
+        for killLine in wavekill.splitlines():
+          if len(killLine) > 1:
+            masks.append(reduce(np.logical_or, [self.Orders[x]['wav'] < float(killLine.split()[0]), self.Orders[x]['wav'] > float(killLine.split()[1])]))
+      except:
+        pass
       self.Orders[x]['mask'] = reduce(np.logical_and, masks)
     pass
   
