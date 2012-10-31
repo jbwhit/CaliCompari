@@ -89,7 +89,6 @@ class Exposure(object):
     self.fitGuess['initial'] = { 'fshift':0.002, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
     self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,30.0) ,'err_fsigma':0.5 })
     self.fitGuess['initial'].update({ 'fmultiple':50.25, 'fix_fmultiple':False, 'limit_fmultiple':(0.1, 100.0) ,'err_fmultiple':0.2 })
-    # self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':True, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
     self.fitGuess['initial'].update({ 'fslope':0.0005, 'fix_fslope':False, 'limit_fslope':(-1.0,1.0) ,'err_fslope':0.05 })
     self.fitGuess['initial'].update({ 'elements':100, 'fix_elements':True })
     self.fitGuess['initial'].update({ 'fwidth':200, 'fix_fwidth':True })
@@ -280,7 +279,6 @@ class Exposure(object):
     binAngstroms = lamb * binSize * 1000 / c_light
     temp = []
     mask = self.Orders[order]['mask']
-    # TODO make sure bin has 'enough' pixels to be useful.
     for x in range(int(1.0/overlap)):
       temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
     np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
@@ -373,9 +371,10 @@ class Exposure(object):
       self.fitResults[binSize][order][bin]['Rsmall'] = R - Rsmall
       self.fitResults[binSize][order][bin]['Rbig'] = Rbig - R
       self.fitResults[binSize][order][bin]['avpix'] = avpix
+      self.fitResults[binSize][order][bin]['converged'] = True
       print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
     except:
-      # TODO flag bin as bad.
+      self.fitResults[binSize][order][bin]['converged'] = False
       print "Serious problem with bin:", bin
     pass
 
@@ -461,10 +460,9 @@ class Exposure(object):
       self.loadResults = pickle.load(fp)
       self.loadfitResults = pickle.load(fp)
       # d1 = pickle.load(fp)
-      # d2 = pickle.load(fp)
-      # d3 = pickle.load(fp)
     pass
-  # TODO 
+
+  # TODO
   # scienceExposure = dict(HD138527.exposureHeader)
   # if scienceExposure['INSTRUME'] == 'HDS':
   #   print "HDS!"
@@ -509,15 +507,6 @@ class Exposure(object):
     pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
     pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
     pass
-    
-  # def plotFitResults(self, order, fmultiple, fshift, fsigma, elements=1000, **kwargs):
-  #   """docstring for plotFitResults"""
-  #   kernel = self.gaussKernel(elements, fsigma)
-  #   tck = si.splrep(self.Orders[order]['oiow'], np.convolve(kernel, self.Orders[order]['oiof'] * fmultiple, mode='same'))
-  #   overflx = np.average(si.splev(np.hstack(self.Orders[order]['overwav']) + fshift, tck).reshape(np.shape(self.Orders[order]['overwav'])), axis=1)
-  #   pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-  #   pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)    
-  #   pass
   
 def main(argv=None):
   pass
@@ -542,6 +531,5 @@ if __name__ == "__main__":
 # you can use reduce to combine all of them:
 # 
 # total_mask = reduce(np.logical_and, masks)
-# you can also use boolean operators explicitely if you need to manually choose the masks:
-# 
+# you can also use boolean operators explicitly if you need to manually choose the masks:
 # total_mask = masks[0] & masks[1] & masks[2]
