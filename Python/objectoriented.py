@@ -395,6 +395,12 @@ class Exposure(object):
                                  fslope * (maskediow - np.average(maskediow)), mode='same'), s=0)
     return np.array([spline.integral(x - mindel/2.0 + fshift, x + mindel/2.0 + fshift) for x in maskedwav])
   
+  def binChiSquare(self, elements, fsigma, fmultiple, fshift, fslope, order, binSize, bin, **kwargs):
+    """docstring for binChiSquare"""
+    wav, flx, err, con, pix = telescopeBIN(order, binSize, bin)
+    return np.sum(((binShiftandTilt(elements, fsigma, fmultiple, fshift, fslope, order, binSize, bin) - flx/con) / (err/con))**2)
+    pass
+  
   def binshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """Fit like shift with the addition of a slope across the order."""
     mask = self.Orders[order]['mask']
@@ -415,10 +421,12 @@ class Exposure(object):
     s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
     overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
     return self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok], self.Orders[order]['err'][ok], self.Orders[order]['con'][ok], self.Orders[order]['pix'][ok], overflx
-    
-  # pseudo-code 
-  # def FTSTweak(order, binSize, bin):
-  # def telescopeTweak(order, binSize, bin):
+  
+  def telescopeBIN(self, order, binSize, bin):
+    """Returns the wavelength, flux, error, continuum, and pixel information for a given order, binSize and binNumber."""
+    telescopeDict = self.Orders[order]
+    telescopeMask = reduce(np.logical_and, [telescopeMask[binSize][bin]['ok'], mask])
+    return telescopeDict['wav'][telescopeMask], telescopeDict['flx'][telescopeMask], telescopeDict['err'][telescopeMask], telescopeDict['con'][telescopeMask], telescopeDict['pix'][telescopeMask]
 
   # TODO save data + masks for each order
   # plot(rewritebinshiftandtilt(fitResults)[0],)
@@ -490,35 +498,7 @@ class Exposure(object):
   # if scienceExposure['INSTRUME'] == 'HDS':
   #   print "HDS!"
   # calibrationExposure = dict()
-  # def binshiftandtilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
-  #   """Fit like shift with the addition of a slope across the order."""
-  #   mask = self.Orders[order]['mask']
-  #   kernel = self.gaussKernel(elements, fsigma)
-  #   ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-  #   iok = self.Orders[order][binSize][bin]['iok']
-  #   s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
-  #   overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
-  #   return np.sum( ((overflx - self.Orders[order]['flx'][ok] / self.Orders[order]['con'][ok]) / \
-  #                   (self.Orders[order]['err'][ok] / self.Orders[order]['con'][ok])) ** 2 )
-  
-  def plotbinsinorder(self, order, binSize=350):
-    """docstring for plotbinsinorder"""
-    for bin in self.fitResults[350][order]:
-      elements = self.fitResults[binSize][order][bin]['values']['elements']
-      fmultiple = self.fitResults[binSize][order][bin]['values']['fmultiple']
-      fshift = self.fitResults[binSize][order][bin]['values']['fshift']
-      fsigma = self.fitResults[binSize][order][bin]['values']['fsigma']
-      fslope = self.fitResults[binSize][order][bin]['values']['fslope']
-      mask = self.Orders[order]['mask']
-      kernel = self.gaussKernel(elements, fsigma)
-      ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-      iok = self.Orders[order][binSize][bin]['iok']
-      s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
-      overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
-      pl.plot(self.Orders[order]['wav'][ok], self.Orders[order]['flx'][ok]/self.Orders[order]['con'][ok], color="black", linewidth=2.0)
-      pl.plot(self.Orders[order]['wav'][ok], overflx)
-    pass
-  
+
   def plotBinFit(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
     """docstring for plotBinFit"""
     mask = self.Orders[order]['mask']
