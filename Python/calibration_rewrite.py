@@ -1,5 +1,4 @@
 import sys
-# import shutil
 import os
 import glob
 import barak
@@ -7,7 +6,6 @@ from barak.fitcont import spline_continuum
 from barak import convolve
 from barak import interp
 
-# import pprint 
 import numpy as np
 import scipy
 import scipy as sp
@@ -15,25 +13,23 @@ from scipy import optimize
 import scipy.interpolate as si
 import scipy.signal as ss
 import scipy.constants as spc
-# import subprocess as subprocess
 import time
 import datetime
-# from optparse import OptionParser
 import argparse
 from ConfigParser import RawConfigParser, SafeConfigParser
 import random as ra
-# import tempfile
 import itertools
-# import pl as pl
 import pyfits as pf
 import cPickle as pickle
+import zlib
+import gzip
 import matplotlib.pylab as pl
 from matplotlib.backends.backend_pdf import PdfPages
 
 pl.rcParams['figure.figsize'] = 16, 8  # that's default image size for this interactive session
 
-import minuit as mi 
-# import iminuit as mi 
+# import minuit as mi 
+import iminuit as mi 
 
 c_light = spc.c
               
@@ -70,6 +66,18 @@ def slope_to_array(slope, array):
     import numpy as np
     return np.linspace(-slope, slope, num=len(array)) + array
     
+#
+def load_exposure(filename='big.gz'):
+    """load_exposure recreates the final fit """
+    with gzip.open(filename, 'rb') as file_handle:
+        loadexposure = pickle.load(file_handle)
+    return loadexposure
+    
+def save_exposure(object, filename='big.gz'):
+        """docstring for save_exposure"""
+        with gzip.open(filename, 'wb') as file_handle:
+            pickle.dump(object, file_handle, pickle.HIGHEST_PROTOCOL)
+        pass
     
 class Exposure(object):
     """An oject class that contains the data for quasar absorption spectroscopy study.
@@ -94,15 +102,24 @@ class Exposure(object):
         self.fitGuess = AutoVivification()
         self.fit_starting = AutoVivification()
         self.fit_starting['initial'] = {}
-        self.fit_starting['initial'].update({'shift':-0.3, 'fix_shift':False, 'limit_shift':(-1.0,1.0), 'err_shift':0.05})
-        self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), 'err_slope':0.1})
-        self.fit_starting['initial'].update({'sigma':8.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), 'err_sigma':0.5})
-        self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), 'err_multiple':0.1})
-        self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), 'err_offset':0.3})
-        self.fit_starting['initial'].update({'elements':100, 'fix_elements':True})
+        # self.fit_starting['initial'].update({'shift':-0.3, 'fix_shift':False, 'limit_shift':(-1.0,1.0), })
+        # self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), })
+        # self.fit_starting['initial'].update({'sigma':8.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), })
+        # self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), })
+        # self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), })
+        self.fit_starting['initial'].update({'shift':-0.003, 'fix_shift':False, 'limit_shift':(-1.0,1.0), 'error_shift':0.003})
+        self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), 'error_slope':0.004})
+        self.fit_starting['initial'].update({'sigma':8.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), 'error_sigma':0.002})
+        self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), 'error_multiple':0.03})
+        self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), 'error_offset':0.03})
+        # self.fit_starting['initial'].update({'shift':-0.3, 'fix_shift':False, 'limit_shift':(-1.0,1.0), 'err_shift':0.003})
+        # self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), 'err_slope':0.004})
+        # self.fit_starting['initial'].update({'sigma':8.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), 'err_sigma':0.002})
+        # self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), 'err_multiple':0.03})
+        # self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), 'err_offset':0.03})
         self.fit_starting['initial'].update({'minuit':0, 'fix_minuit':True})
-        self.fit_starting['initial'].update({'strategy':2})
-        # self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-1.0,1.0)})
+        # self.fit_starting['initial'].update({'elements':100, 'fix_elements':True}) # UNDO THIS if minuit!
+        # self.fit_starting['initial'].update({'strategy':2}) # UNDO THIS if minuit!
         # Basic strategy: convolve iof; then, shift/tilt/multiply/and offset it. 
         self.fitGuess['initial'] = { 'fshift':0.002, 'fix_fshift':False, 'limit_fshift':(-1.0,1.0) ,'err_fshift':0.005 }
         self.fitGuess['initial'].update({ 'fsigma':10.5, 'fix_fsigma':False, 'limit_fsigma':(2.0,30.0) ,'err_fsigma':0.05 })
@@ -286,7 +303,11 @@ class Exposure(object):
                 print "done."
             # try: 
             print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
+            # print "Robust search. Beginning initial scan..."
+            # m.scan(("shift", 20, -0.5, 0.5), ("sigma", 3, 5, 15), output=True)
+            # print "done."
             m.migrad()
+            print "done."            
             self.fitResults['order'][order]['values'] = m.values
             try: 
                 del self.fitResults['order'][order]['values']['order']
@@ -322,11 +343,8 @@ class Exposure(object):
         err = self.Orders[order]['err'][mask]
         con = self.Orders[order]['con'][mask]
         pix = self.Orders[order]['pix'][mask]
-        # TODO
-        #print slope, len(wav), len(iow), len(iof), sigma, offset
         overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2 ) / len(wav)
-        print chi_square, slope, sigma, offset, shift, multiple
         if minuit == 0:
             return chi_square
         else:
@@ -334,7 +352,8 @@ class Exposure(object):
 
     # TODO add masks to everything!
     def CreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
-        """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
+        """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. 
+        so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
         mask = self.Orders[order]['mask']
         lamb = np.average(self.Orders[order]['wav'][mask])
         try:
@@ -366,26 +385,33 @@ class Exposure(object):
                     print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
     
-    def fullOrderBinShift(self, order=7, binSize=350):
-        """docstring for fullOrderBinShift"""
-        self.fitGuess['order'][order] = self.fitGuess['initial']
-        self.fitGuess['order'][order].update(self.fitResults['order'][order]['values'])
-        self.fitGuess['order'][order].update({ 'elements':int(10.0 * self.fitResults['order'][order]['values']['fsigma']) })
-        print self.fitResults['order'][order]
+    # def fullOrderBinShift(self, order=7, binSize=350):
+    #     """docstring for fullOrderBinShift"""
+    #     self.fitGuess['order'][order] = self.fitGuess['initial']
+    #     self.fitGuess['order'][order].update(self.fitResults['order'][order]['values'])
+    #     self.fitGuess['order'][order].update({ 'elements':int(10.0 * self.fitResults['order'][order]['values']['fsigma']) })
+    #     print self.fitResults['order'][order]
+    #     for singlebin in self.Orders[order][binSize]:
+    #         self.fitResults[binSize][order][singlebin] = {}
+    #         self.smallBinShift(order, binSize, singlebin)
+    #     pass
+    # 
+    def full_order_bin_shift_and_scale(self, order=7, binSize=350):
+        self.fit_starting['order'][order] = self.fit_starting['initial']
+        self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
         for singlebin in self.Orders[order][binSize]:
             self.fitResults[binSize][order][singlebin] = {}
-            self.smallBinShift(order, binSize, singlebin)
+            self.small_bin_shift(order, binSize, singlebin)
         pass
-
-    def smallBinShift(self, order=7, binSize=350, bin=2, veryVerbose=False, robustSearch=False):
+        
+    def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
         """docstring for smallBinShift"""
         # TODO check that the full order solution has run.
         try:
             type(self.fitResults['order'][order]['values'])
         except:
             print "It doesn't look like the full order was run... "
-        m = mi.Minuit(self.bin_shift_and_tilt, order=order, binSize=binSize, bin=bin, fix_order=True, fix_binSize=True, fix_bin=True, chi2=1, fix_chi2=True, **self.fitGuess['order'][order])
-        # m = mi.Minuit(self.binChiSquare, order=order, binSize=binSize, bin=bin, fix_order=True, fix_binSize=True, fix_bin=True, **self.fitGuess['order'][order])
+        m = mi.Minuit(self.bin_shift_and_tilt, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **self.fit_starting['order'][order])
         if veryVerbose==True:
             m.printMode=1
         if robustSearch==True:
@@ -393,48 +419,54 @@ class Exposure(object):
             m.scan(("fshift",20,-0.5,0.5))
             print "done."
         try: 
-            print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", bin
+            print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin
             m.migrad()
             # m.minos()
-            self.fitResults[binSize][order][bin]['values'] = m.values
-            self.fitResults[binSize][order][bin]['errors'] = m.errors # todo m.merrors 
+            self.fitResults[binSize][order][singlebin]['values'] = m.values
+            self.fitResults[binSize][order][singlebin]['errors'] = m.errors # todo m.merrors 
+            print "p2", 
             mask = self.Orders[order]['mask']
-            ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-            iok = self.Orders[order][binSize][bin]['iok']
-            elements = self.fitResults[binSize][order][bin]['values']['elements']
-            lamb = np.average(self.Orders[order]['wav'][ok]) # 
-            avpix = np.average(self.Orders[order]['pix'][ok])
-            cal = m.values['fshift'] * c_light / lamb
-            calerr = m.errors['fshift'] * c_light / lamb
-            midpointFTS = np.argmin(np.abs(self.Orders[order]['iow'][iok] - lamb))
-            FTSchunk = self.Orders[order]['iow'][iok][midpointFTS + elements/2] - self.Orders[order]['iow'][iok][midpointFTS - elements/2]
-            FTSsigma = FTSchunk * m.values['fsigma'] / elements # size of sigma in wavelength
-            FWHM = 2.0 * np.sqrt(2.0 * np.log(2.0)) * FTSsigma # size of FWHM in wavelength
-            R = lamb / FWHM
-            posFTSsigma = FTSsigma + m.errors['fsigma'] / elements # positive error
-            negFTSsigma = FTSsigma - m.errors['fsigma'] / elements # negative error
-            Rsmall = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * posFTSsigma)
-            Rbig = lamb / (2.0 * np.sqrt(2.0 * np.log(2.0)) * negFTSsigma)
-            self.fitResults[binSize][order][bin]['avwav'] = lamb
-            self.fitResults[binSize][order][bin]['cal'] = cal
-            self.fitResults[binSize][order][bin]['calerr'] = calerr
-            self.fitResults[binSize][order][bin]['R'] = R
-            self.fitResults[binSize][order][bin]['Rsmall'] = R - Rsmall
-            self.fitResults[binSize][order][bin]['Rbig'] = Rbig - R
-            self.fitResults[binSize][order][bin]['avpix'] = avpix
-            self.fitResults[binSize][order][bin]['converged'] = True
+            ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
+            iok = self.Orders[order][binSize][singlebin]['iok']
+            iow = self.Orders[order]['iow'][iok]
+            iof = self.Orders[order]['iof'][iok]
+            wav = self.Orders[order]['wav'][ok]
+            flx = self.Orders[order]['flx'][ok]
+            err = self.Orders[order]['err'][ok]
+            con = self.Orders[order]['con'][ok]
+            pix = self.Orders[order]['pix'][ok]
+            lamb = np.average(wav)  
+            avpix = np.average(pix)
+            cal = m.values['shift'] * c_light / lamb
+            calerr = m.errors['shift'] * c_light / lamb
+            R = c_light / m.values['sigma'] / 1000. # 
+            Rerr = c_light / m.errors['sigma'] / 1000. # 
+            self.fitResults[binSize][order][singlebin]['avwav'] = lamb
+            self.fitResults[binSize][order][singlebin]['cal'] = cal
+            self.fitResults[binSize][order][singlebin]['calerr'] = calerr
+            self.fitResults[binSize][order][singlebin]['R'] = R
+            self.fitResults[binSize][order][singlebin]['Rerr'] = Rerr
+            self.fitResults[binSize][order][singlebin]['avpix'] = avpix
+            self.fitResults[binSize][order][singlebin]['converged'] = True
+            self.fitResults[binSize][order][singlebin]['values']['minuit'] = 1
+            chisq, wav, nflx, nerr, pix, overflx = self.bin_shift_and_tilt(**self.fitResults[binSize][order][singlebin]['values'])
+            self.fitResults[binSize][order][singlebin]['chisq'] = chisq
+            self.fitResults[binSize][order][singlebin]['wav'] = wav
+            self.fitResults[binSize][order][singlebin]['nflx'] = nflx
+            self.fitResults[binSize][order][singlebin]['nerr'] = nerr
+            self.fitResults[binSize][order][singlebin]['pix'] = pix
+            self.fitResults[binSize][order][singlebin]['overflx'] = overflx
             print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
         except:
-            self.fitResults[binSize][order][bin]['converged'] = False
-            print "Serious problem with bin:", bin
+            self.fitResults[binSize][order][singlebin]['converged'] = False
+            print "Serious problem with bin:", singlebin
         pass
-        
-    # TODO offset; shift; tilt; multiple; sigma
-    def bin_shift_and_tilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, chi2=1, **kwargs):
-        """Fit like shift with the addition of a slope across the order."""
+            
+    def bin_shift_and_tilt(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+        """trying to smooth, interpolate, and integrate the fit."""
         mask = self.Orders[order]['mask']
-        ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-        iok = self.Orders[order][binSize][bin]['iok']
+        ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
+        iok = self.Orders[order][binSize][singlebin]['iok']
         iow = self.Orders[order]['iow'][iok]
         iof = self.Orders[order]['iof'][iok]
         wav = self.Orders[order]['wav'][ok]
@@ -442,42 +474,16 @@ class Exposure(object):
         err = self.Orders[order]['err'][ok]
         con = self.Orders[order]['con'][ok]
         pix = self.Orders[order]['pix'][ok]
-        half_pixel = self.Orders[order]['mindel']/2.0
-        # s = si.UnivariateSpline(iow, np.convolve(kernel, (iof * fmultiple) + fslope * (iow - np.average(iow)), mode='same'), s=0)
-        # spline = interp.AkimaSpline(iow, iof)
-        # hodor = interp.interp_Akima(wavdict[0], iow, iof)
-        # overflx = np.array([s.integral(x - half_pixel + fshift, x + half_pixel + fshift) for x in wav])
-        # overflx = interp.interp_Akima(wav + fshift, iow, np.convolve(kernel, iof * fmultiple + fslope*(iow-np.average(iow))))
-        convolved = convolve.convolve_constant_dv(iow, iof * fmultiple + fslope * (iow - np.average(iow)), vfwhm=fsigma)
-        overflx = interp.interp_Akima(wav + fshift, iow, convolved)
-        if chi2 == 1:
-            return np.sum( ((overflx - flx / con) / (err / con)) ** 2 )
+        # print len(wav), len(flx), len(pix), slope, shift, sigma, offset
+        overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
+        # chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2 ) / (len(wav) / 2.)
+        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2 ) 
+        # TODO - divide by len/2??
+        if minuit == 0:
+            return chi_square
         else:
-            return np.sum( ((overflx - flx / con) / (err / con)) ** 2 ), wav, flx/con, err/con, pix, overflx        
-    
-    # def bin_shift_and_tilt(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, chi2=1, **kwargs):
-    #     """Fit like shift with the addition of a slope across the order."""
-    #     mask = self.Orders[order]['mask']
-    #     kernel = self.gaussKernel(elements, fsigma)
-    #     ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-    #     iok = self.Orders[order][binSize][bin]['iok']
-    #     iow = self.Orders[order]['iow'][iok]
-    #     iof = self.Orders[order]['iof'][iok]
-    #     wav = self.Orders[order]['wav'][ok]
-    #     flx = self.Orders[order]['flx'][ok]
-    #     err = self.Orders[order]['err'][ok]
-    #     con = self.Orders[order]['con'][ok]
-    #     pix = self.Orders[order]['pix'][ok]
-    #     half_pixel = self.Orders[order]['mindel']/2.0
-    #     s = si.UnivariateSpline(iow, np.convolve(kernel, (iof * fmultiple) + fslope * (iow - np.average(iow)), mode='same'), s=0)
-    #     overflx = np.array([s.integral(x - half_pixel + fshift, x + half_pixel + fshift) for x in wav])
-    #     if chi2 == 1:
-    #         return np.sum( ((overflx - flx / con) / (err / con)) ** 2 )
-    #     else:
-    #         return np.sum( ((overflx - flx / con) / (err / con)) ** 2 ), wav, flx/con, err/con, pix, overflx        
-    # 
-    # TODO save data + masks for each order
-    # plot(rewritebin_shift_and_tilt(fitResults)[0],)
+            return chi_square, wav, flx/con, err/con, pix, overflx
+
     def prettyResults(self):
         self.Results = {}
         for binSizeKey in self.fitResults.keys():
@@ -500,7 +506,7 @@ class Exposure(object):
                             self.Results[binSizeKey][order]['cal'].append(self.fitResults[binSizeKey][order][bin]['cal'])
                             self.Results[binSizeKey][order]['calerr'].append(self.fitResults[binSizeKey][order][bin]['calerr'])
                             self.Results[binSizeKey][order]['R'].append(self.fitResults[binSizeKey][order][bin]['R'])
-                            self.Results[binSizeKey][order]['Rerr'].append(np.average([self.fitResults[binSizeKey][order][bin]['Rbig'], self.fitResults[binSizeKey][order][bin]['Rsmall']]))
+                            self.Results[binSizeKey][order]['Rerr'].append(self.fitResults[binSizeKey][order][bin]['Rerr'])
                             self.Results[binSizeKey][order]['avpix'].append(self.fitResults[binSizeKey][order][bin]['avpix'])
                             self.Results[binSizeKey][order]['converged'].append(self.fitResults[binSizeKey][order][bin]['converged'])
                     shuffle = np.argsort(self.Results[binSizeKey][order]['avwav'])
@@ -511,54 +517,5 @@ class Exposure(object):
                     self.Results[binSizeKey][order]['Rerr'] = np.array(self.Results[binSizeKey][order]['Rerr'])[shuffle]
                     self.Results[binSizeKey][order]['avpix'] = np.array(self.Results[binSizeKey][order]['avpix'])[shuffle]
                     self.Results[binSizeKey][order]['converged'] = np.array(self.Results[binSizeKey][order]['converged'])[shuffle]
-        pass
-
-    # minor save
-    def smallSave(self, filename='small.p'):
-        """docstring for smallSave"""
-        with open(filename, 'wb') as fp:
-            pickle.dump(self.Results, fp)
-        pass
-    # full save
-    def bigSave(self, filename='big.p'):
-        """docstring for bigSave"""
-        with open(filename, 'wb') as fp:
-            pickle.dump(self.fitResults, fp)
-        pass
-
-    def saveFIT(self, filename="fit.fits"):
-        """docstring for saveFIT"""
-        with open(filename, 'wb') as fp:
-            pickle.dump(self.Results, fp)
-            pickle.dump(self.fitResults, fp)
-            # TODO pickle.dump(self.exposureHeader, fp)
-            # pickle.dump(nextDict, fp)
-            # pickle.dump(bigDict, fp)
-        pass
-
-    def loadFIT(self, filename="fit.fits"):
-        """docstring for loadFIT"""
-        with open(filename, 'rb') as fp:
-            self.loadResults = pickle.load(fp)
-            self.loadfitResults = pickle.load(fp)
-            # d1 = pickle.load(fp)
-        pass
-
-    # TODO
-    # scienceExposure = dict(HD138527.exposureHeader)
-    # if scienceExposure['INSTRUME'] == 'HDS':
-    #     print "HDS!"
-    # calibrationExposure = dict()
-
-    def plotBinFit(self, order, bin, binSize, fmultiple, fshift, fsigma, elements, fslope, **kwargs):
-        """docstring for plotBinFit"""
-        mask = self.Orders[order]['mask']
-        kernel = self.gaussKernel(elements, fsigma)
-        ok = reduce(np.logical_and, [self.Orders[order][binSize][bin]['ok'], mask])
-        iok = self.Orders[order][binSize][bin]['iok']
-        s = si.UnivariateSpline(self.Orders[order]['iow'][iok], np.convolve(kernel, (self.Orders[order]['iof'][iok] * fmultiple) + fslope * (self.Orders[order]['iow'][iok] - np.average(self.Orders[order]['iow'][iok])), mode='same'), s=0)
-        overflx = np.array([s.integral(x - self.Orders[order]['mindel']/2.0 + fshift, x + self.Orders[order]['mindel']/2.0 + fshift) for x in self.Orders[order]['wav'][ok]])
-        pl.plot(self.Orders[order]['wav'], self.Orders[order]['flx'] / self.Orders[order]['con'], color="black", linewidth=2.0)
-        pl.plot(np.average(self.Orders[order]['overwav'],axis=1), overflx)
         pass
 
