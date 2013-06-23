@@ -1,0 +1,12 @@
+
+
+FCN=3.408164e+01 FROM MIGRAD  STATUS=VALID   257 CALLS
+EDM=4.803981e-05 ERROR MATRIX ACCURATE POSDEF
+NO.       NAME         VALUE         ERROR  FIXED
+  0      order  2.100000e+01  1.000000e+00  FIXED
+  1   multiple  1.095563e+00  9.050042e-02
+  2      shift  -1.090554e-02  3.419963e-03
+  3      sigma  3.460538e+00  3.504751e-05
+  4      slope  -7.957321e-03  2.448822e-02
+  5     offset  1.982056e-01  6.368289e-02
+  6     minuit  0.000000e+00  1.000000e+00  FIXED
