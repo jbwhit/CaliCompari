@@ -102,11 +102,6 @@ class Exposure(object):
         self.fitGuess = AutoVivification()
         self.fit_starting = AutoVivification()
         self.fit_starting['initial'] = {}
-        # self.fit_starting['initial'].update({'shift':-0.3, 'fix_shift':False, 'limit_shift':(-1.0,1.0), })
-        # self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), })
-        # self.fit_starting['initial'].update({'sigma':8.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), })
-        # self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), })
-        # self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), })
         self.fit_starting['initial'].update({'shift':-0.003, 'fix_shift':False, 'limit_shift':(-1.0,1.0), 'error_shift':0.03})
         self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), 'error_slope':0.04})
         self.fit_starting['initial'].update({'sigma':3.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), 'error_sigma':0.2})
@@ -134,6 +129,7 @@ class Exposure(object):
                     self.exposureHeader = hdu[-1].header
             for field in self.Orders.keys():
                 if len(self.Orders[field]) < 1:
+                    print "deleting", field
                     del(self.Orders[field])
         else:
             print "Not a fits file.", self.exposureFile
@@ -246,44 +242,6 @@ class Exposure(object):
                     self.Orders[order]['mindel'] = adjacent_difference
         pass
     
-    # def fullExposureShift(self, verbose=False, veryVerbose=False, robustSearch=False, binSize=350):
-    #     """docstring for fullExposureShift"""
-    #     starttime=datetime.datetime.now()
-    #     #.strftime("%Y-%m-%d %H:%M:%S")
-    #     for order in self.safe_orders:
-    #         if 'iow' in self.Orders[order]:
-    #             print "Working on order: ", order
-    #             self.CreateBinArrays(order=order, binSize=binSize) # new!
-    #             try:
-    #                 self.OrderShiftandTilt(order=order, veryVerbose=veryVerbose) # new!
-    #                 self.fullOrderBinShift(order=order, binSize=binSize)
-    #             except:
-    #                 print "Order or bin failed."
-    #     print "Took:", str(datetime.datetime.now() - starttime), " to finish exposure."
-    #     pass
-    # 
-    # def OrderShiftandTilt(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
-    #     """docstring for dictionaryShift"""
-    #     try:
-    #         m = mi.Minuit(self.shiftandtilt, order=order, fix_order=True, **self.fitGuess['initial'])
-    #         if veryVerbose==True:
-    #             m.printMode=1
-    #         if robustSearch==True:
-    #             print "Robust search. Beginning initial scan..."
-    #             m.scan(("fshift", 20, -0.5, 0.5))
-    #             print "done."
-    #         # try: 
-    #         print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
-    #         m.migrad()
-    #         self.fitResults['order'][order]['values'] = m.values
-    #         try: 
-    #             del self.fitResults['order'][order]['values']['order']
-    #         except:
-    #             pass
-    #         self.fitResults['order'][order]['errors'] = m.errors
-    #     except:
-    #         print "Serious problem with order:", order
-    #     pass
 
     def full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
         """docstring for dictionaryShift"""
@@ -378,17 +336,6 @@ class Exposure(object):
                     print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
     
-    # def fullOrderBinShift(self, order=7, binSize=350):
-    #     """docstring for fullOrderBinShift"""
-    #     self.fitGuess['order'][order] = self.fitGuess['initial']
-    #     self.fitGuess['order'][order].update(self.fitResults['order'][order]['values'])
-    #     self.fitGuess['order'][order].update({ 'elements':int(10.0 * self.fitResults['order'][order]['values']['fsigma']) })
-    #     print self.fitResults['order'][order]
-    #     for singlebin in self.Orders[order][binSize]:
-    #         self.fitResults[binSize][order][singlebin] = {}
-    #         self.smallBinShift(order, binSize, singlebin)
-    #     pass
-    # 
     def full_order_bin_shift_and_scale(self, order=7, binSize=350):
         self.fit_starting['order'][order] = self.fit_starting['initial']
         self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
@@ -415,18 +362,12 @@ class Exposure(object):
             print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin
             m.set_strategy(2)
             m.migrad()
-            # m.minos()
             self.fitResults[binSize][order][singlebin]['values'] = m.values
             self.fitResults[binSize][order][singlebin]['errors'] = m.errors # todo m.merrors 
             mask = self.Orders[order]['mask']
             ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
             iok = self.Orders[order][binSize][singlebin]['iok']
-            # iow = self.Orders[order]['iow'][iok]
-            # iof = self.Orders[order]['iof'][iok]
             wav = self.Orders[order]['wav'][ok]
-            # flx = self.Orders[order]['flx'][ok]
-            # err = self.Orders[order]['err'][ok]
-            # con = self.Orders[order]['con'][ok]
             pix = self.Orders[order]['pix'][ok]
             lamb = np.average(wav)  
             avpix = np.average(pix)
