@@ -91,14 +91,21 @@ class Exposure(object):
             
         fit.
         """
-    def __init__(self, arcFile='', reductionProgram='', calibrationType='', calibrationFile='', exposureFile=''):
+    def __init__(self, arcFile='', reductionProgram='', calibration_type='', calibration_file='', exposure_file='', header_file=''):
         """docstring for __init__"""
         super(Exposure, self).__init__()
         self.arcFile = arcFile # a calibration Arc File
-        self.exposureFile = exposureFile # a calibration Arc File
+        self.exposure_file = exposure_file # a calibration Arc File
         self.reductionProgram = reductionProgram # reduction software used
-        self.calibrationType = calibrationType # Calibration type: iodine, asteroid, none
-        self.calibrationFile = calibrationFile # Calibration File
+        self.calibration_type = calibration_type # Calibration type: iodine, asteroid, none
+        self.calibration_file = calibration_file # Calibration File
+        
+        self.header_file = header_file # science and arc file headers
+        if not self.header_file:
+            with gzip.open(self.header_file, 'rb') as file_handle:
+                loadheader = pickle.load(file_handle)
+            self.arc_header, self.flux_header = loadheader[0], loadheader[1]
+        
         self.fitGuess = AutoVivification()
         self.fit_starting = AutoVivification()
         self.fit_starting['initial'] = {}
@@ -112,10 +119,10 @@ class Exposure(object):
         # self.fit_starting['initial'].update({'set_strategy':2}) # UNDO THIS if minuit!
         # TODO check if fit hits against any of the imposed limits. 
         self.fitResults = AutoVivification()
-        if self.exposureFile.split('.')[-1] == 'fits':
+        if self.exposure_file.split('.')[-1] == 'fits':
             print "A fits exposure file."
             self.Orders = {}
-            hdu = pf.open(self.exposureFile)
+            hdu = pf.open(self.exposure_file)
             self.header = hdu[0].header
             for index, table in enumerate(hdu):
                 try:
@@ -132,16 +139,16 @@ class Exposure(object):
                     print "deleting", field
                     del(self.Orders[field])
         else:
-            print "Not a fits file.", self.exposureFile
+            print "Not a fits file.", self.exposure_file
         pass
 
-    def loadReferenceSpectra(self):
-        """docstring for loadReferenceSpectra"""
+    def load_reference_spectra(self):
+        """docstring for load_reference_spectra"""
         try: 
-            iow, iof = np.loadtxt(self.calibrationFile)
+            iow, iof = np.loadtxt(self.calibration_file)
         except:
             print "Consider saving a faster-loading calibration file."
-            iow, iof = np.loadtxt(self.calibrationFile, unpack='True')
+            iow, iof = np.loadtxt(self.calibration_file, unpack='True')
         print "Reference FTS wavelength range:", iow[0], iow[-1]
         self.safe_orders = []
         for order in self.Orders:
@@ -200,7 +207,7 @@ class Exposure(object):
             self.Orders[order]['mask'] = reduce(np.logical_and, masks)
         pass
     
-    def continuumFit(self, knots=10, plot=False, verbose=False):
+    def continuum_fit(self, knots=10, plot=False, verbose=False):
         """fits a continuum via a spline through the flux values."""
         knots = 10
         edgeTolerance = 0.1
@@ -229,7 +236,7 @@ class Exposure(object):
         pass
         
     
-    def OverSample(self):
+    def oversample(self):
         """sets the minimum spacing in the telescope spectra (mindel) 
         for each order over the whole exposure.
         Rename. """
@@ -301,8 +308,7 @@ class Exposure(object):
         else:
             return chi_square, wav, flx/con, err/con, pix, overflx
 
-    # TODO add masks to everything!
-    def CreateBinArrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
+    def create_bin_arrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
         """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. 
         so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
         mask = self.Orders[order]['mask']
@@ -434,7 +440,7 @@ class Exposure(object):
         else:
             return chi_square, wav, flx/con, err/con, pix, overflx
 
-    def prettyResults(self):
+    def make_pretty_results(self):
         self.Results = {}
         for binSizeKey in self.fitResults.keys():
             if binSizeKey == 'order':
@@ -469,8 +475,3 @@ class Exposure(object):
                     self.Results[binSizeKey][order]['converged'] = np.array(self.Results[binSizeKey][order]['converged'])[shuffle]
         pass
 
-# arc_header
-# flux_header
-# with gzip.open(headerfile, 'rb') as file_handle:
-#     loadheader = pickle.load(file_handle)
-# expo.arc_header, expo.flux_header = loadheader[0], loadheader[1]
