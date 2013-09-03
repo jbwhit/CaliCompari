@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 import os
 import glob
@@ -21,7 +22,6 @@ import random as ra
 import itertools
 import pyfits as pf
 import cPickle as pickle
-# import zlib
 import gzip
 import matplotlib.pylab as pl
 from matplotlib.backends.backend_pdf import PdfPages
@@ -469,3 +469,8 @@ class Exposure(object):
                     self.Results[binSizeKey][order]['converged'] = np.array(self.Results[binSizeKey][order]['converged'])[shuffle]
         pass
 
+# arc_header
+# flux_header
+# with gzip.open(headerfile, 'rb') as file_handle:
+#     loadheader = pickle.load(file_handle)
+# expo.arc_header, expo.flux_header = loadheader[0], loadheader[1]
