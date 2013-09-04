@@ -101,7 +101,7 @@ class Exposure(object):
         self.calibration_file = calibration_file # Calibration File
         
         self.header_file = header_file # science and arc file headers
-        if not self.header_file:
+        if self.header_file:
             with gzip.open(self.header_file, 'rb') as file_handle:
                 loadheader = pickle.load(file_handle)
             self.arc_header, self.flux_header = loadheader[0], loadheader[1]
