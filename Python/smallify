@@ -35,13 +35,25 @@ expo = calicompari.load_exposure(big_cal_file)
 small_dictionary = {}
 
 small_dictionary['Results'] = expo.Results
-small_dictionary['arc_header'] = expo.arc_header
-small_dictionary['flux_header'] = expo.flux_header
-small_dictionary['header'] = expo.header
+try:
+	small_dictionary['arc_header'] = expo.arc_header
+except:
+	small_dictionary['arc_header'] = ""
+
+try:
+	small_dictionary['flux_header'] = expo.flux_header
+except:
+	small_dictionary['flux_header'] = ""
+
+try:
+	small_dictionary['header'] = expo.header
+except:
+	small_dictionary['header'] = ""
 try:
     small_dictionary['exposure_file'] = expo.exposure_file
 except:
     small_dictionary['exposure_file'] = expo.exposureFile
+    
 small_dictionary['safe_orders'] = expo.safe_orders
 
 with gzip.open(outfile, 'wb') as file_handle:
