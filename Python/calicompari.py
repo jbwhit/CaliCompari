@@ -104,6 +104,31 @@ def save_exposure(object, filename='big.gz'):
         pickle.dump(object, file_handle, pickle.HIGHEST_PROTOCOL)
     pass
     
+def save_small_exposure(expo, filename="small.gz"):
+    """docstring"""
+    small_dictionary = {}
+    small_dictionary['Results'] = expo.Results
+    try:
+        small_dictionary['arc_header'] = expo.arc_header
+    except:
+        small_dictionary['arc_header'] = ""
+    try:
+        small_dictionary['flux_header'] = expo.flux_header
+    except:
+        small_dictionary['flux_header'] = ""
+    try:
+        small_dictionary['header'] = expo.header
+    except:
+        small_dictionary['header'] = ""
+    try:
+        small_dictionary['exposure_file'] = expo.exposure_file
+    except:
+        small_dictionary['exposure_file'] = expo.exposureFile
+    small_dictionary['safe_orders'] = expo.safe_orders
+    with gzip.open(filename, 'wb') as file_handle:
+        pickle.dump(small_dictionary, file_handle, pickle.HIGHEST_PROTOCOL)
+    pass
+
 class Exposure(object):
     """An oject class that contains the data for quasar absorption spectroscopy study.
     
