@@ -36,8 +36,7 @@ c_light = spc.c
 help_message = '''
 Various limitations: 
 Must have an FTS spectrum w/o gaps
-Must have a telescope spectrum w/ monotonically increasing wavelength (gaps are OK)
-The spacing of the nearest two pixels in the telescope spectrum is used as the pixel size for each order.
+Must have a telescope spectrum w/ monotonically increasing wavelength per order (gaps are OK)
 '''
 
 class AutoVivification(dict):
@@ -91,12 +90,12 @@ class Exposure(object):
             
         fit.
         """
-    def __init__(self, arcFile='', reductionProgram='', calibration_type='', calibration_file='', exposure_file='', header_file=''):
+    def __init__(self, arcFile='', reduction_program='', calibration_type='', calibration_file='', exposure_file='', header_file=''):
         """docstring for __init__"""
         super(Exposure, self).__init__()
         self.arcFile = arcFile # a calibration Arc File
         self.exposure_file = exposure_file # a calibration Arc File
-        self.reductionProgram = reductionProgram # reduction software used
+        self.reduction_program = reduction_program # reduction software used
         self.calibration_type = calibration_type # Calibration type: iodine, asteroid, none
         self.calibration_file = calibration_file # Calibration File
         
@@ -109,11 +108,11 @@ class Exposure(object):
         self.fitGuess = AutoVivification()
         self.fit_starting = AutoVivification()
         self.fit_starting['initial'] = {}
-        self.fit_starting['initial'].update({'shift':-0.003, 'fix_shift':False, 'limit_shift':(-1.0,1.0), 'error_shift':0.03})
-        self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0,2.0), 'error_slope':0.04})
-        self.fit_starting['initial'].update({'sigma':3.102, 'fix_sigma':False, 'limit_sigma':(1.0,25.0), 'error_sigma':0.2})
-        self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1,20.0), 'error_multiple':0.03})
-        self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0,2.0), 'error_offset':0.03})
+        self.fit_starting['initial'].update({'shift':-0.003, 'fix_shift':False, 'limit_shift':(-1.5, 1.5), 'error_shift':0.03})
+        self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0, 2.0), 'error_slope':0.04})
+        self.fit_starting['initial'].update({'sigma':3.102, 'fix_sigma':False, 'limit_sigma':(1.0, 50.0), 'error_sigma':0.2})
+        self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1, 20.0), 'error_multiple':0.03})
+        self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0, 2.0), 'error_offset':0.03})
         self.fit_starting['initial'].update({'minuit':0, 'fix_minuit':True})
         # self.fit_starting['initial'].update({'elements':100, 'fix_elements':True}) # UNDO THIS if minuit!
         # self.fit_starting['initial'].update({'set_strategy':2}) # UNDO THIS if minuit!
@@ -213,7 +212,11 @@ class Exposure(object):
         edgeTolerance = 0.1
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
-            self.Orders[order]['con'] = np.zeros(len(self.Orders[order]['wav']))
+            self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
+            if len(self.Orders[order]['wav'][mask]) < 10:
+                self.safe_orders.remove(order)
+                print "Removing from safe_orders: ", order
+                continue
             s = si.LSQUnivariateSpline(self.Orders[order]['wav'][mask],\
                                                                 self.Orders[order]['flx'][mask],\
                                                                 np.linspace(self.Orders[order]['wav'][mask][0]+edgeTolerance,\
