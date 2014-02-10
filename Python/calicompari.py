@@ -129,6 +129,91 @@ def save_small_exposure(expo, filename="small.gz"):
         pickle.dump(small_dictionary, file_handle, pickle.HIGHEST_PROTOCOL)
     pass
 
+def modify_small_exposure(small_dictionary, filename="small.gz"):
+    """after modifying a small_dictionary file, save the resulting output."""
+    with gzip.open(filename, 'wb') as file_handle:
+        pickle.dump(small_dictionary, file_handle, pickle.HIGHEST_PROTOCOL)
+    pass
+
+def hand_tweak( filename_expo,
+                help=False,
+                color="blue",
+                *args, 
+                **kwargs):
+    """Organized way of hand-tweaking the final calicompari results.
+    The input is a already final fit with a dictionary that defines the modifications
+    that allows for a reasonable fit."""
+    tempx = []
+    tempy = []
+    infile, expo = filename_expo
+    if "hand_tweak" not in expo.keys():
+        print "Must first create hand_tweak dictionary. Some defaults."
+        print """expo["hand_tweak"] = {}
+        expo["hand_tweak"]["upper_error_bound"] = 200.0
+        expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
+        expo["hand_tweak"]["badorders"] = []
+        expo["hand_tweak"]["orderbegin"] = 0
+        expo["hand_tweak"]["orderend"] = -1
+        expo["hand_tweak"]["offset"] = 0.
+        expo["hand_tweak"]["minimum_number_of_chunks"] = 5"""
+    
+    upper_error_bound = expo["hand_tweak"]["upper_error_bound"]
+    upper_wavelength_cutoff = expo["hand_tweak"]["upper_wavelength_cutoff"]
+    badorders = expo["hand_tweak"]["badorders"]
+    orderbegin = expo["hand_tweak"]["orderbegin"]
+    orderend = expo["hand_tweak"]["orderend"]
+    offset = expo["hand_tweak"]["offset"]
+    minimum_number_of_chunks = expo["hand_tweak"]["minimum_number_of_chunks"]
+
+    for order in [x for x in expo['safe_orders'] if x not in badorders]:
+        if order in expo['Results'][500]:
+            mask = (expo['Results'][500][order]['calerr'] < upper_error_bound) & (expo['Results'][500][order]['avwav'] < upper_wavelength_cutoff)
+            if np.sum(mask) > minimum_number_of_chunks:
+                errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
+                         expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
+                         expo['Results'][500][order]['calerr'][mask][orderbegin:orderend], color=color, linewidth=linewidth)
+                tempx.append(np.average(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend]))
+                tempy.append(np.average(expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
+                    weights=1.0/(expo['Results'][500][order]['calerr'][mask][orderbegin:orderend])**2))
+    tempx = np.hstack(tempx)
+    tempy = np.hstack(tempy)
+    vbuffer = 800.0
+    p, res, _, _, _ = numpy.polyfit(tempx, tempy, 1, full=True)
+    wbuffer = 50.0
+    pwav = np.arange(tempx[0] - wbuffer, tempx[-1] + wbuffer)
+    slope = p[0]
+    intercept = p[1]
+    expo["hand_tweak"]["calc_slope"] = slope
+    expo["hand_tweak"]["calc_intercept"] = intercept
+    pl.plot(pwav, slope * pwav + intercept, color="black", label="slope: " + str(round(slope * 1000,2)) + " m/s/1000 A")
+    pl.ylim(np.average(tempy) - vbuffer, np.average(tempy) + vbuffer)
+    pl.legend()
+    pl.title(infile)
+    pl.xlabel("Wavelength (Angstroms)", fontsize=20.0)
+    pl.xticks(fontsize=20.0)
+    pl.ylabel("v_shift (m/s)", fontsize=20.0)
+    pl.yticks(fontsize=20.0)
+    print "Filename: ", infile
+    print "Slope: ", str(round(slope * 1000, 2)) + " m/s/1000 A"
+    print "Current setup: "
+    print " Discard data points with error larger than: ", upper_error_bound
+    print " Exclude wavelenths greater than: ", upper_wavelength_cutoff
+    print " Chunks each order between indices: ", orderbegin, orderend
+    print " Removed orders: ", [order for order in badorders]
+    print " Offset: ", offset
+    print " Min # chunks required / order: ", minimum_number_of_chunks
+
+    if help == True:
+        print """Some help: 
+        expo["hand_tweak"]["upper_error_bound"] = 200.0
+        expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
+        expo["hand_tweak"]["badorders"] = []
+        expo["hand_tweak"]["orderbegin"] = 0
+        expo["hand_tweak"]["orderend"] = -1
+        expo["hand_tweak"]["offset"] = 0.
+        expo["hand_tweak"]["minimum_number_of_chunks"] = 5"""
+    pass
+
 class Exposure(object):
     """An oject class that contains the data for quasar absorption spectroscopy study.
     
