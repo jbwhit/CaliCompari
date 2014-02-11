@@ -2,7 +2,7 @@ from distutils.core import setup
 
 
 setup(name="CaliCompari",
-      version='0.0.1',
+      version='0.0.2',
       description="Compare spectra with reference spectrum.",
       py_modules=['calicompari'],
       author='Jonathan Whitmore',

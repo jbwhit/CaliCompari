@@ -138,6 +138,7 @@ def modify_small_exposure(small_dictionary, filename="small.gz"):
 def hand_tweak( filename_expo,
                 help=False,
                 color="blue",
+                linewidth=2.0,
                 *args, 
                 **kwargs):
     """Organized way of hand-tweaking the final calicompari results.
@@ -169,7 +170,7 @@ def hand_tweak( filename_expo,
         if order in expo['Results'][500]:
             mask = (expo['Results'][500][order]['calerr'] < upper_error_bound) & (expo['Results'][500][order]['avwav'] < upper_wavelength_cutoff)
             if np.sum(mask) > minimum_number_of_chunks:
-                errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
+                pl.errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
                          expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
                          expo['Results'][500][order]['calerr'][mask][orderbegin:orderend], color=color, linewidth=linewidth)
                 tempx.append(np.average(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend]))
@@ -178,7 +179,7 @@ def hand_tweak( filename_expo,
     tempx = np.hstack(tempx)
     tempy = np.hstack(tempy)
     vbuffer = 800.0
-    p, res, _, _, _ = numpy.polyfit(tempx, tempy, 1, full=True)
+    p, res, _, _, _ = np.polyfit(tempx, tempy, 1, full=True)
     wbuffer = 50.0
     pwav = np.arange(tempx[0] - wbuffer, tempx[-1] + wbuffer)
     slope = p[0]
