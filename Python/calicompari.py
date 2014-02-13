@@ -211,7 +211,15 @@ def hand_tweak( filename_expo,
     print " Removed orders: ", [order for order in badorders]
     print " Offset: ", offset
     print " Min # chunks required / order: ", minimum_number_of_chunks
-
+    try: 
+        instrument = expo['flux_header']['INSTRUME']
+        if instrument == "UVES":
+            key = [key for key in expo['flux_header'].keys() if "WLEN" in str(key)][0]
+            center_wavelength = expo['flux_header'][key]
+            expo["hand_tweak"]["center_wavelength"] = center_wavelength
+            expo["hand_tweak"]["center_offset"] = slope * center_wavelength + intercept
+    except:
+        pass
     if help == True:
         print """Some help: 
         expo["hand_tweak"]["upper_error_bound"] = 200.0
