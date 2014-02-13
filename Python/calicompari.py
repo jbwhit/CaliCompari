@@ -140,6 +140,7 @@ def hand_tweak( filename_expo,
                 color="blue",
                 linewidth=2.0,
                 clobber=False,
+                plot=True,
                 *args, 
                 **kwargs):
     """Organized way of hand-tweaking the final calicompari results.
@@ -174,7 +175,8 @@ def hand_tweak( filename_expo,
         if order in expo['Results'][500]:
             mask = (expo['Results'][500][order]['calerr'] < upper_error_bound) & (expo['Results'][500][order]['avwav'] < upper_wavelength_cutoff)
             if np.sum(mask) > minimum_number_of_chunks:
-                pl.errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
+                if plot==True:
+                    pl.errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
                          expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
                          expo['Results'][500][order]['calerr'][mask][orderbegin:orderend], color=color, linewidth=linewidth)
                 tempx.append(np.average(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend]))
@@ -191,14 +193,15 @@ def hand_tweak( filename_expo,
     expo["hand_tweak"]["calc_slope"] = slope
     expo["hand_tweak"]["calc_intercept"] = intercept
     # Find out if uves; center wavelength -- and intercept value there.
-    pl.plot(pwav, slope * pwav + intercept, color="black", label="slope: " + str(round(slope * 1000,2)) + " m/s/1000 A")
-    pl.ylim(np.average(tempy) - vbuffer, np.average(tempy) + vbuffer)
-    pl.legend()
-    pl.title(infile)
-    pl.xlabel("Wavelength (Angstroms)", fontsize=20.0)
-    pl.xticks(fontsize=20.0)
-    pl.ylabel("v_shift (m/s)", fontsize=20.0)
-    pl.yticks(fontsize=20.0)
+    if plot==True:
+        pl.plot(pwav, slope * pwav + intercept, color="black", label="slope: " + str(round(slope * 1000,2)) + " m/s/1000 A")
+        pl.ylim(np.average(tempy) - vbuffer, np.average(tempy) + vbuffer)
+        pl.legend()
+        pl.title(infile)
+        pl.xlabel("Wavelength (Angstroms)", fontsize=20.0)
+        pl.xticks(fontsize=20.0)
+        pl.ylabel("v_shift (m/s)", fontsize=20.0)
+        pl.yticks(fontsize=20.0)
     print "Filename: ", infile
     print "Slope: ", str(round(slope * 1000, 2)) + " m/s/1000 A"
     print "Current setup: "
