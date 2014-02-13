@@ -185,11 +185,12 @@ def hand_tweak( filename_expo,
     vbuffer = 800.0
     p, res, _, _, _ = np.polyfit(tempx, tempy, 1, full=True)
     wbuffer = 50.0
-    pwav = np.arange(tempx[0] - wbuffer, tempx[-1] + wbuffer)
+    pwav = np.arange(np.min(tempx) - wbuffer, np.max(tempx) + wbuffer)
     slope = p[0]
     intercept = p[1]
     expo["hand_tweak"]["calc_slope"] = slope
     expo["hand_tweak"]["calc_intercept"] = intercept
+    # Find out if uves; center wavelength -- and intercept value there.
     pl.plot(pwav, slope * pwav + intercept, color="black", label="slope: " + str(round(slope * 1000,2)) + " m/s/1000 A")
     pl.ylim(np.average(tempy) - vbuffer, np.average(tempy) + vbuffer)
     pl.legend()
