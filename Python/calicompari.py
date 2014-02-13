@@ -139,6 +139,7 @@ def hand_tweak( filename_expo,
                 help=False,
                 color="blue",
                 linewidth=2.0,
+                clobber=False,
                 *args, 
                 **kwargs):
     """Organized way of hand-tweaking the final calicompari results.
@@ -147,6 +148,9 @@ def hand_tweak( filename_expo,
     tempx = []
     tempy = []
     infile, expo = filename_expo
+    if ("hand_tweak" in expo.keys()) and (clobber == False):
+        print "Turn clobber=True to modify this."
+        return
     if "hand_tweak" not in expo.keys():
         print "Must first create hand_tweak dictionary. Some defaults."
         print """expo["hand_tweak"] = {}
