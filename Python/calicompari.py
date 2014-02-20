@@ -88,6 +88,7 @@ class AutoVivification(dict):
 def slope_to_array(slope, wavelength_array):
     """Return a wavelength array that is modified by a slope 
     across the array."""
+    import numpy as np
     midpoint = np.average([wavelength_array[0], wavelength_array[-1]])
     shift = slope * (wav - midpoint) + wav
     return shift
