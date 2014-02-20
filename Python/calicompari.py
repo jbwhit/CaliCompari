@@ -54,7 +54,6 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 pl.rcParams['figure.figsize'] = 16, 8  # that's default image size for this interactive session
 
-# import minuit as mi 
 import iminuit as mi 
 
 c_light = spc.c
@@ -199,7 +198,6 @@ def hand_tweak( filename_expo,
     intercept = p[1]
     expo["hand_tweak"]["calc_slope"] = slope
     expo["hand_tweak"]["calc_intercept"] = intercept
-    # Find out if uves; center wavelength -- and intercept value there.
     if plot==True:
         pl.plot(pwav, slope * pwav + intercept, color="black", label="slope: " + str(round(slope * 1000,2)) + " m/s/1000 A")
         pl.ylim(np.average(tempy) - vbuffer, np.average(tempy) + vbuffer)
@@ -276,7 +274,6 @@ class Exposure(object):
         self.fit_starting['initial'].update({'minuit':0, 'fix_minuit':True})
         # self.fit_starting['initial'].update({'elements':100, 'fix_elements':True}) # UNDO THIS if minuit!
         # self.fit_starting['initial'].update({'set_strategy':2}) # UNDO THIS if minuit!
-        # TODO check if fit hits against any of the imposed limits. 
         self.fitResults = AutoVivification()
         if self.exposure_file.split('.')[-1] == 'fits':
             print "A fits exposure file."
@@ -532,18 +529,18 @@ class Exposure(object):
             m.set_strategy(2)
             m.migrad()
             self.fitResults[binSize][order][singlebin]['values'] = m.values
-            self.fitResults[binSize][order][singlebin]['errors'] = m.errors # todo m.merrors 
+            self.fitResults[binSize][order][singlebin]['errors'] = m.errors
             mask = self.Orders[order]['mask']
             ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
             iok = self.Orders[order][binSize][singlebin]['iok']
             wav = self.Orders[order]['wav'][ok]
             pix = self.Orders[order]['pix'][ok]
-            lamb = np.average(wav)  
+            lamb = np.average(wav)
             avpix = np.average(pix)
             cal = m.values['shift'] * c_light / lamb
             calerr = m.errors['shift'] * c_light / lamb
-            R = c_light / m.values['sigma'] / 1000. # 
-            Rerr = c_light / m.errors['sigma'] / 1000. # 
+            R = c_light / m.values['sigma'] / 1000.
+            Rerr = c_light / m.errors['sigma'] / 1000.
             self.fitResults[binSize][order][singlebin]['avwav'] = lamb
             self.fitResults[binSize][order][singlebin]['cal'] = cal
             self.fitResults[binSize][order][singlebin]['calerr'] = calerr
