@@ -86,12 +86,18 @@ class AutoVivification(dict):
             value = self[item] = type(self)()
             return value
 
-#
-def slope_to_array(slope, array):
+def slope_to_array(slope, wavelength_array):
+    """Return a wavelength array that is modified by a slope 
+    across the array."""
+    midpoint = np.average([array[0], array[-1]])
+    shift = slope * (wav - midpoint) + wav
+    return shift
+
+def slope_to_array_old(slope, array):
+    """Previous implementation."""
     import numpy as np
     return np.linspace(-slope, slope, num=len(array)) + array
-    
-#
+
 def load_exposure(filename='big.gz'):
     """load_exposure recreates the final fit """
     with gzip.open(filename, 'rb') as file_handle:
@@ -99,7 +105,8 @@ def load_exposure(filename='big.gz'):
     return loadexposure
     
 def save_exposure(object, filename='big.gz'):
-    """docstring for save_exposure"""
+    """Save to a large file all the information from the supercalibration 
+    fitting process. Includes data, and headers."""
     with gzip.open(filename, 'wb') as file_handle:
         pickle.dump(object, file_handle, pickle.HIGHEST_PROTOCOL)
     pass
