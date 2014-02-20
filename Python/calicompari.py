@@ -90,9 +90,8 @@ def slope_to_array(slope, wavelength_array):
     across the array."""
     import numpy as np
     midpoint = np.average([wavelength_array[0], wavelength_array[-1]])
-    shift = slope * (wav - midpoint) + wav
-    return shift
-
+    return slope * (wavelength_array - midpoint) + wavelength_array
+    
 def slope_to_array_old(slope, array):
     """Previous implementation."""
     import numpy as np
