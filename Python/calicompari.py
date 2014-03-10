@@ -141,12 +141,38 @@ def modify_small_exposure(small_dictionary, filename="small.gz"):
         pickle.dump(small_dictionary, file_handle, pickle.HIGHEST_PROTOCOL)
     pass
 
+def cleaned_data(filename_expo):
+    """Modifies hand_tweak-ed file to contain only best data."""
+    infile, expo = filename_expo
+    upper_error_bound = expo["hand_tweak"]["upper_error_bound"]
+    upper_wavelength_cutoff = expo["hand_tweak"]["upper_wavelength_cutoff"]
+    badorders = expo["hand_tweak"]["badorders"]
+    orderbegin = expo["hand_tweak"]["orderbegin"]
+    orderend = expo["hand_tweak"]["orderend"]
+    offset = expo["hand_tweak"]["offset"]
+    minimum_number_of_chunks = expo["hand_tweak"]["minimum_number_of_chunks"]
+    expo['cleaned'] = {}
+    expo['cleaned'][500] = {}
+    for order in [x for x in expo['safe_orders'] if x not in badorders]:
+        if order in expo['Results'][500]:
+            mask = (expo['Results'][500][order]['calerr'] < upper_error_bound) & (expo['Results'][500][order]['avwav'] < upper_wavelength_cutoff)
+            expo['cleaned'][500][order] = {}
+            if np.sum(mask) > minimum_number_of_chunks:
+                expo['cleaned'][500][order]['avwav'] = expo['Results'][500][order]['avwav'][mask][orderbegin:orderend]
+                expo['cleaned'][500][order]['cal'] = expo['Results'][500][order]['cal'][mask][orderbegin:orderend]
+                expo['cleaned'][500][order]['calerr'] = expo['Results'][500][order]['calerr'][mask][orderbegin:orderend]
+                expo['cleaned'][500][order]['avpix'] = expo['Results'][500][order]['avpix'][mask][orderbegin:orderend]
+                expo['cleaned'][500][order]['R'] = expo['Results'][500][order]['R'][mask][orderbegin:orderend]
+                expo['cleaned'][500][order]['Rerr'] = expo['Results'][500][order]['Rerr'][mask][orderbegin:orderend]
+    pass
+
 def hand_tweak( filename_expo,
                 help=False,
                 color="blue",
                 linewidth=2.0,
                 clobber=False,
                 plot=True,
+                vbuffer=800.0,
                 *args, 
                 **kwargs):
     """Organized way of hand-tweaking the final calicompari results.
@@ -190,7 +216,7 @@ def hand_tweak( filename_expo,
                     weights=1.0/(expo['Results'][500][order]['calerr'][mask][orderbegin:orderend])**2))
     tempx = np.hstack(tempx)
     tempy = np.hstack(tempy)
-    vbuffer = 800.0
+    # vbuffer = 800.0
     p, res, _, _, _ = np.polyfit(tempx, tempy, 1, full=True)
     wbuffer = 50.0
     pwav = np.arange(np.min(tempx) - wbuffer, np.max(tempx) + wbuffer)
