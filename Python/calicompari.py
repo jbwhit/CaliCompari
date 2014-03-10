@@ -36,7 +36,7 @@ from barak import interp
 import numpy as np
 import scipy
 import scipy as sp
-from scipy import optimize
+# from scipy import optimize
 import scipy.interpolate as si
 import scipy.signal as ss
 import scipy.constants as spc
