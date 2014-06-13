@@ -294,7 +294,7 @@ class Exposure(object):
         self.fit_starting['initial'] = {}
         self.fit_starting['initial'].update({'shift':-0.003, 'fix_shift':False, 'limit_shift':(-1.5, 1.5), 'error_shift':0.03})
         self.fit_starting['initial'].update({'slope':-0.002, 'fix_slope':False, 'limit_slope':(-2.0, 2.0), 'error_slope':0.04})
-        self.fit_starting['initial'].update({'sigma':3.102, 'fix_sigma':False, 'limit_sigma':(1.0, 50.0), 'error_sigma':0.2})
+        self.fit_starting['initial'].update({'sigma':3.102, 'fix_sigma':False, 'limit_sigma':(1.0, 10.0), 'error_sigma':0.2})
         self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1, 20.0), 'error_multiple':0.03})
         self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0, 2.0), 'error_offset':0.03})
         self.fit_starting['initial'].update({'minuit':0, 'fix_minuit':True})
