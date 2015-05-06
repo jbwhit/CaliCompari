@@ -64,8 +64,6 @@ Must have an FTS spectrum w/o gaps
 Must have a telescope spectrum w/ monotonically increasing wavelength per order (gaps are OK)
 '''
 
-list_of_splines = [interp.interp_Akima, interp.interp_spline]
-
 class AutoVivification(dict):
     """Implementation of perl's autovivification feature.
     from: http://stackoverflow.com/questions/651794/whats-the-best-way-to-initialize-a-dict-of-dicts-in-python
@@ -189,8 +187,8 @@ def hand_tweak( filename_expo,
     if "hand_tweak" not in expo.keys():
         print "Must first create hand_tweak dictionary. Some defaults."
         print """expo["hand_tweak"] = {}
-        expo["hand_tweak"]["upper_error_bound"] = 100.0
-        expo["hand_tweak"]["upper_wavelength_cutoff"] = 9600.0
+        expo["hand_tweak"]["upper_error_bound"] = 200.0
+        expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
         expo["hand_tweak"]["badorders"] = []
         expo["hand_tweak"]["orderbegin"] = 0
         expo["hand_tweak"]["orderend"] = -1
@@ -399,7 +397,6 @@ class Exposure(object):
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
             self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
-            print order
             if len(self.Orders[order]['wav'][mask]) < 100:
                 self.safe_orders.remove(order)
                 print "Removing from safe_orders: ", order
@@ -532,24 +529,7 @@ class Exposure(object):
         else:
             return chi_square, wav, flx/con, err/con, pix, overflx
 
-    # def order_shift_and_scale_Akima(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
-    #     """trying to smooth, interpolate, and integrate the fit."""
-    #     mask = self.Orders[order]['mask']
-    #     iow = self.Orders[order]['iow']
-    #     iof = self.Orders[order]['iof']
-    #     wav = self.Orders[order]['wav'][mask]
-    #     flx = self.Orders[order]['flx'][mask]
-    #     err = self.Orders[order]['err'][mask]
-    #     con = self.Orders[order]['con'][mask]
-    #     pix = self.Orders[order]['pix'][mask]
-    #     overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
-    #     chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
-    #     if minuit == 0:
-    #         return chi_square
-    #     else:
-    #         return chi_square, wav, flx/con, err/con, pix, overflx
-
-    def test_order_shift_and_scale(self, order, multiple, shift, sigma, slope, offset, minuit, spline, **kwargs):
+    def order_shift_and_scale_spline(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
         """trying to smooth, interpolate, and integrate the fit."""
         mask = self.Orders[order]['mask']
         iow = self.Orders[order]['iow']
@@ -559,10 +539,7 @@ class Exposure(object):
         err = self.Orders[order]['err'][mask]
         con = self.Orders[order]['con'][mask]
         pix = self.Orders[order]['pix'][mask]
-        overflx = multiple * slope_to_array(slope,
-                                            list_of_splines[spline](wav + shift,
-                                                                    iow,
-                                                                    convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
@@ -587,9 +564,7 @@ class Exposure(object):
         temp = []
         mask = self.Orders[order]['mask']
         for x in range(int(1.0/overlap)):
-            temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms,
-                        self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms,
-                        binAngstroms))
+            temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
         np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
         iowTolerance = iowTolerance
         minPixelsPerBin = minPixelsPerBin
@@ -605,12 +580,12 @@ class Exposure(object):
                     print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
 
-    def test_full_order_bin_shift_and_scale(self, order=7, binSize=350, spline=0):
+    def full_order_bin_shift_and_scale(self, order=7, binSize=350):
         self.fit_starting['order'][order] = self.fit_starting['initial']
         self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
         for singlebin in self.Orders[order][binSize]:
             self.fitResults[binSize][order][singlebin] = {}
-            self.test_small_bin_shift(spline=spline, order=order, binSize=binSize, singlebin=singlebin)
+            self.small_bin_shift(order, binSize, singlebin)
         pass
 
     def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
@@ -620,16 +595,7 @@ class Exposure(object):
             type(self.fitResults['order'][order]['values'])
         except:
             print "It doesn't look like the full order was run... "
-        m = mi.Minuit(self.test_bin_shift_and_tilt,
-                      spline=spline,
-                      order=order,
-                      binSize=binSize,
-                      singlebin=singlebin,
-                      fix_spline=True,
-                      fix_order=True,
-                      fix_binSize=True,
-                      fix_singlebin=True,
-                      **self.fit_starting['order'][order])
+        m = mi.Minuit(self.bin_shift_and_tilt_Akima, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **self.fit_starting['order'][order])
         if veryVerbose==True:
             m.printMode=1
         if robustSearch==True:
@@ -705,7 +671,7 @@ class Exposure(object):
         err = self.Orders[order]['err'][ok]
         con = self.Orders[order]['con'][ok]
         pix = self.Orders[order]['pix'][ok]
-        overflx = multiple * slope_to_array(slope, list_of_splines[spline](wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
