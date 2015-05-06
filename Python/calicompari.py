@@ -441,32 +441,8 @@ class Exposure(object):
         pass
 
 
-    def full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
-        """docstring for dictionaryShift"""
-        try:
-            m = mi.Minuit(self.order_shift_and_scale_Akima, order=order, fix_order=True, **self.fit_starting['initial'])
-            if veryVerbose==True:
-                m.printMode=1
-            if robustSearch==True:
-                print "Robust search. Beginning initial scan..."
-                m.scan(("fshift", 20, -0.5, 0.5))
-                print "done."
-            print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            m.set_strategy(2)
-            m.migrad()
-            # print "done."
-            self.fitResults['order'][order]['values'] = m.values
-            try:
-                del self.fitResults['order'][order]['values']['order']
-            except:
-                pass
-            self.fitResults['order'][order]['errors'] = m.errors
-        except:
-            print "Serious problem with order:", order
-        pass
-
-    def hand_full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False,
-                                    robustSearch=False, first_guesses=""):
+    def full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False,
+                                    robustSearch=False, first_guesses=self.fit_starting['initial']):
         """docstring for dictionaryShift
         first_guesses needs to look something like:
         first_guesses = {}
@@ -493,7 +469,6 @@ class Exposure(object):
         first_guesses.update({'minuit':0, 'fix_minuit':True})
         """
         try:
-            # m = mi.Minuit(self.order_shift_and_scale_Akima, order=order, fix_order=True, **self.fit_starting['initial'])
             m = mi.Minuit(self.order_shift_and_scale_Akima, order=order, fix_order=True, **first_guesses)
             if veryVerbose==True:
                 m.printMode=1
@@ -504,7 +479,6 @@ class Exposure(object):
             print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             m.set_strategy(2)
             m.migrad()
-            # print "done."
             self.fitResults['order'][order]['values'] = m.values
             try:
                 del self.fitResults['order'][order]['values']['order']
