@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# Copyright 2013 Jonathan Whitmore 
+# Copyright 2013 Jonathan Whitmore
 # Distributed under the Boost Software License, Version 1.0.
 #
 # Permission is hereby granted, free of charge, to any person or organization
@@ -23,7 +23,7 @@
 # DISTRIBUTING THE SOFTWARE BE LIABLE FOR ANY DAMAGES OR OTHER LIABILITY,
 # WHETHER IN CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-# 
+#
 
 import sys
 import os
@@ -54,15 +54,17 @@ from matplotlib.backends.backend_pdf import PdfPages
 
 pl.rcParams['figure.figsize'] = 16, 8  # that's default image size for this interactive session
 
-import iminuit as mi 
+import iminuit as mi
 
 c_light = spc.c
-              
+
 help_message = '''
-Various limitations: 
+Various limitations:
 Must have an FTS spectrum w/o gaps
 Must have a telescope spectrum w/ monotonically increasing wavelength per order (gaps are OK)
 '''
+
+list_of_splines = [interp.interp_Akima, interp.interp_spline]
 
 class AutoVivification(dict):
     """Implementation of perl's autovivification feature.
@@ -86,12 +88,12 @@ class AutoVivification(dict):
             return value
 
 def slope_to_array(slope, wavelength_array):
-    """Return a wavelength array that is modified by a slope 
+    """Return a wavelength array that is modified by a slope
     across the array."""
     import numpy as np
     midpoint = np.average([wavelength_array[0], wavelength_array[-1]])
     return slope * (wavelength_array - midpoint) + wavelength_array
-    
+
 def slope_to_array_old(slope, array):
     """Previous implementation."""
     import numpy as np
@@ -102,14 +104,14 @@ def load_exposure(filename='big.gz'):
     with gzip.open(filename, 'rb') as file_handle:
         loadexposure = pickle.load(file_handle)
     return loadexposure
-    
+
 def save_exposure(object, filename='big.gz'):
-    """Save to a large file all the information from the supercalibration 
+    """Save to a large file all the information from the supercalibration
     fitting process. Includes data, and headers."""
     with gzip.open(filename, 'wb') as file_handle:
         pickle.dump(object, file_handle, pickle.HIGHEST_PROTOCOL)
     pass
-    
+
 def save_small_exposure(expo, filename="small.gz"):
     """docstring"""
     small_dictionary = {}
@@ -173,7 +175,7 @@ def hand_tweak( filename_expo,
                 clobber=False,
                 plot=True,
                 vbuffer=800.0,
-                *args, 
+                *args,
                 **kwargs):
     """Organized way of hand-tweaking the final calicompari results.
     The input is a already final fit with a dictionary that defines the modifications
@@ -187,14 +189,14 @@ def hand_tweak( filename_expo,
     if "hand_tweak" not in expo.keys():
         print "Must first create hand_tweak dictionary. Some defaults."
         print """expo["hand_tweak"] = {}
-        expo["hand_tweak"]["upper_error_bound"] = 200.0
-        expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
+        expo["hand_tweak"]["upper_error_bound"] = 100.0
+        expo["hand_tweak"]["upper_wavelength_cutoff"] = 9600.0
         expo["hand_tweak"]["badorders"] = []
         expo["hand_tweak"]["orderbegin"] = 0
         expo["hand_tweak"]["orderend"] = -1
         expo["hand_tweak"]["offset"] = 0.
-        expo["hand_tweak"]["minimum_number_of_chunks"] = 5"""
-    
+        expo["hand_tweak"]["minimum_number_of_chunks"] = 4"""
+
     upper_error_bound = expo["hand_tweak"]["upper_error_bound"]
     upper_wavelength_cutoff = expo["hand_tweak"]["upper_wavelength_cutoff"]
     badorders = expo["hand_tweak"]["badorders"]
@@ -208,11 +210,11 @@ def hand_tweak( filename_expo,
             mask = (expo['Results'][500][order]['calerr'] < upper_error_bound) & (expo['Results'][500][order]['avwav'] < upper_wavelength_cutoff)
             if np.sum(mask) > minimum_number_of_chunks:
                 if plot==True:
-                    pl.errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend], 
-                         expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
+                    pl.errorbar(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend],
+                         expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset,
                          expo['Results'][500][order]['calerr'][mask][orderbegin:orderend], color=color, linewidth=linewidth)
                 tempx.append(np.average(expo['Results'][500][order]['avwav'][mask][orderbegin:orderend]))
-                tempy.append(np.average(expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset, 
+                tempy.append(np.average(expo['Results'][500][order]['cal'][mask][orderbegin:orderend] + offset,
                     weights=1.0/(expo['Results'][500][order]['calerr'][mask][orderbegin:orderend])**2))
     tempx = np.hstack(tempx)
     tempy = np.hstack(tempy)
@@ -242,7 +244,7 @@ def hand_tweak( filename_expo,
     print " Removed orders: ", [order for order in badorders]
     print " Offset: ", offset
     print " Min # chunks required / order: ", minimum_number_of_chunks
-    try: 
+    try:
         instrument = expo['flux_header']['INSTRUME']
         if instrument == "UVES":
             key = [key for key in expo['flux_header'].keys() if "WLEN" in str(key)][0]
@@ -252,7 +254,7 @@ def hand_tweak( filename_expo,
     except:
         pass
     if help == True:
-        print """Some help: 
+        print """Some help:
         expo["hand_tweak"]["upper_error_bound"] = 200.0
         expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
         expo["hand_tweak"]["badorders"] = []
@@ -264,14 +266,14 @@ def hand_tweak( filename_expo,
 
 class Exposure(object):
     """An oject class that contains the data for quasar absorption spectroscopy study.
-    
-    An exposure has: 
+
+    An exposure has:
         orders which have
             pixels with corresponding
             wavelength
             flux
-            error values. 
-            
+            error values.
+
         fit.
         """
     def __init__(self, arcFile='', reduction_program='', calibration_type='', calibration_file='', exposure_file='', header_file=''):
@@ -282,13 +284,13 @@ class Exposure(object):
         self.reduction_program = reduction_program # reduction software used
         self.calibration_type = calibration_type # Calibration type: iodine, asteroid, none
         self.calibration_file = calibration_file # Calibration File
-        
+
         self.header_file = header_file # science and arc file headers
         if self.header_file:
             with gzip.open(self.header_file, 'rb') as file_handle:
                 loadheader = pickle.load(file_handle)
             self.arc_header, self.flux_header = loadheader[0], loadheader[1]
-        
+
         self.fitGuess = AutoVivification()
         self.fit_starting = AutoVivification()
         self.fit_starting['initial'] = {}
@@ -326,7 +328,7 @@ class Exposure(object):
 
     def load_reference_spectra(self):
         """docstring for load_reference_spectra"""
-        try: 
+        try:
             iow, iof = np.loadtxt(self.calibration_file)
         except:
             print "Consider saving a faster-loading calibration file."
@@ -352,12 +354,12 @@ class Exposure(object):
                 self.safe_orders.remove(order)
                 print order, "was removed."
         pass
-                
+
     def cleanup(self, verbose=False):
         """mask out bad regions of the spectra
-        Example config file setup. 
+        Example config file setup.
         [skylines]
-        remove: 
+        remove:
             5589.128        5589.132
             5865.454        5865.459
         """
@@ -377,7 +379,8 @@ class Exposure(object):
             masks = []
             masks.append(self.Orders[order]['err'] > errorcutoff)
             masks.append(self.Orders[order]['flx'] > flxcutoff)
-            masks.append(np.select([self.Orders[order]['err'] > 0], [self.Orders[order]['flx']/self.Orders[order]['err'] >= sncutoff]))
+            masks.append(np.select([self.Orders[order]['err'] > 0],
+                                   [np.nan_to_num(self.Orders[order]['flx']/self.Orders[order]['err']) >= sncutoff]))
             try:
                 for killLine in wavekill.splitlines():
                     if len(killLine) > 1:
@@ -388,7 +391,7 @@ class Exposure(object):
                 pass
             self.Orders[order]['mask'] = reduce(np.logical_and, masks)
         pass
-    
+
     def continuum_fit(self, knots=10, plot=False, verbose=False):
         """fits a continuum via a spline through the flux values."""
         knots = 10
@@ -396,7 +399,8 @@ class Exposure(object):
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
             self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
-            if len(self.Orders[order]['wav'][mask]) < 10:
+            print order
+            if len(self.Orders[order]['wav'][mask]) < 100:
                 self.safe_orders.remove(order)
                 print "Removing from safe_orders: ", order
                 continue
@@ -407,23 +411,23 @@ class Exposure(object):
                                                                 w=self.Orders[order]['err'][mask])
             self.Orders[order]['con'][mask] = s(self.Orders[order]['wav'][mask]) # new array is made -- continuum
         pass
-    
+
     def continuum_fit_2(self, knots=10, nsig=4.0):
         """barak implementation"""
         knots = knots
         for order in self.safe_orders:
             self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
             mask = self.Orders[order]['mask']
-            self.Orders[order]['con'][mask] = spline_continuum(self.Orders[order]['wav'][mask], 
-                                                    self.Orders[order]['flx'][mask], 
-                                                    self.Orders[order]['err'][mask], 
-                                                    np.linspace(self.Orders[order]['wav'][mask][0], self.Orders[order]['wav'][mask][-1], knots,), 
+            self.Orders[order]['con'][mask] = spline_continuum(self.Orders[order]['wav'][mask],
+                                                    self.Orders[order]['flx'][mask],
+                                                    self.Orders[order]['err'][mask],
+                                                    np.linspace(self.Orders[order]['wav'][mask][0], self.Orders[order]['wav'][mask][-1], knots,),
                                                     nsig=nsig)[0]
         pass
-        
-    
+
+
     def oversample(self):
-        """sets the minimum spacing in the telescope spectra (mindel) 
+        """sets the minimum spacing in the telescope spectra (mindel)
         for each order over the whole exposure.
         Rename. """
         for order in self.safe_orders:
@@ -431,10 +435,10 @@ class Exposure(object):
             self.Orders[order]['mindel'] = self.Orders[order]['wav'][mask][-1] - self.Orders[order]['wav'][mask][0]
             for i in range(len(self.Orders[order]['wav'][mask]) - 1):
                 adjacent_difference = self.Orders[order]['wav'][mask][i+1] - self.Orders[order]['wav'][mask][i]
-                if self.Orders[order]['mindel'] > adjacent_difference: 
+                if self.Orders[order]['mindel'] > adjacent_difference:
                     self.Orders[order]['mindel'] = adjacent_difference
         pass
-    
+
 
     def full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False, robustSearch=False):
         """docstring for dictionaryShift"""
@@ -446,12 +450,12 @@ class Exposure(object):
                 print "Robust search. Beginning initial scan..."
                 m.scan(("fshift", 20, -0.5, 0.5))
                 print "done."
-            print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S") 
+            print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             m.set_strategy(2)
             m.migrad()
-            # print "done."            
+            # print "done."
             self.fitResults['order'][order]['values'] = m.values
-            try: 
+            try:
                 del self.fitResults['order'][order]['values']['order']
             except:
                 pass
@@ -460,7 +464,53 @@ class Exposure(object):
             print "Serious problem with order:", order
         pass
 
-    def order_shift_and_scale_Akima(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+    def test_full_order_shift_scale(self, spline=0, order=7, verbose=False, veryVerbose=False, robustSearch=False):
+        """docstring for dictionaryShift"""
+        try:
+            m = mi.Minuit(self.test_order_shift_and_scale,
+                          spline=spline,
+                          order=order,
+                          fix_spline=True,
+                          fix_order=True,
+                          **self.fit_starting['initial'])
+            if veryVerbose==True:
+                m.printMode=1
+            if robustSearch==True:
+                print "Robust search. Beginning initial scan..."
+                m.scan(("fshift", 20, -0.5, 0.5))
+                print "done."
+            print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            m.set_strategy(2)
+            m.migrad()
+            # print "done."
+            self.fitResults['order'][order]['values'] = m.values
+            try:
+                del self.fitResults['order'][order]['values']['order']
+            except:
+                pass
+            self.fitResults['order'][order]['errors'] = m.errors
+        except:
+            print "Serious problem with order:", order
+        pass
+
+    # def order_shift_and_scale_Akima(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+    #     """trying to smooth, interpolate, and integrate the fit."""
+    #     mask = self.Orders[order]['mask']
+    #     iow = self.Orders[order]['iow']
+    #     iof = self.Orders[order]['iof']
+    #     wav = self.Orders[order]['wav'][mask]
+    #     flx = self.Orders[order]['flx'][mask]
+    #     err = self.Orders[order]['err'][mask]
+    #     con = self.Orders[order]['con'][mask]
+    #     pix = self.Orders[order]['pix'][mask]
+    #     overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+    #     chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
+    #     if minuit == 0:
+    #         return chi_square
+    #     else:
+    #         return chi_square, wav, flx/con, err/con, pix, overflx
+
+    def test_order_shift_and_scale(self, order, multiple, shift, sigma, slope, offset, minuit, spline, **kwargs):
         """trying to smooth, interpolate, and integrate the fit."""
         mask = self.Orders[order]['mask']
         iow = self.Orders[order]['iow']
@@ -470,32 +520,35 @@ class Exposure(object):
         err = self.Orders[order]['err'][mask]
         con = self.Orders[order]['con'][mask]
         pix = self.Orders[order]['pix'][mask]
-        overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
-        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2) 
+        overflx = multiple * slope_to_array(slope,
+                                            list_of_splines[spline](wav + shift,
+                                                                    iow,
+                                                                    convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
         else:
             return chi_square, wav, flx/con, err/con, pix, overflx
 
-    def order_shift_and_scale_spline(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
-        """trying to smooth, interpolate, and integrate the fit."""
-        mask = self.Orders[order]['mask']
-        iow = self.Orders[order]['iow']
-        iof = self.Orders[order]['iof']
-        wav = self.Orders[order]['wav'][mask]
-        flx = self.Orders[order]['flx'][mask]
-        err = self.Orders[order]['err'][mask]
-        con = self.Orders[order]['con'][mask]
-        pix = self.Orders[order]['pix'][mask]
-        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
-        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2) 
-        if minuit == 0:
-            return chi_square
-        else:
-            return chi_square, wav, flx/con, err/con, pix, overflx
+    # def order_shift_and_scale_spline(self, order, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+    #     """trying to smooth, interpolate, and integrate the fit."""
+    #     mask = self.Orders[order]['mask']
+    #     iow = self.Orders[order]['iow']
+    #     iof = self.Orders[order]['iof']
+    #     wav = self.Orders[order]['wav'][mask]
+    #     flx = self.Orders[order]['flx'][mask]
+    #     err = self.Orders[order]['err'][mask]
+    #     con = self.Orders[order]['con'][mask]
+    #     pix = self.Orders[order]['pix'][mask]
+    #     overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+    #     chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
+    #     if minuit == 0:
+    #         return chi_square
+    #     else:
+    #         return chi_square, wav, flx/con, err/con, pix, overflx
 
     def create_bin_arrays(self, order=7, binSize=350, overlap=0.5, iowTolerance=2.0, minPixelsPerBin=100):
-        """overlap is the fractional overlap or how much the bin is shifted relative to the binSize. 
+        """overlap is the fractional overlap or how much the bin is shifted relative to the binSize.
         so overlapping by .5 shifts by half binSize; .33 by .33 binSize. """
         mask = self.Orders[order]['mask']
         lamb = np.average(self.Orders[order]['wav'][mask])
@@ -512,7 +565,9 @@ class Exposure(object):
         temp = []
         mask = self.Orders[order]['mask']
         for x in range(int(1.0/overlap)):
-            temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms, self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms, binAngstroms))
+            temp.append(np.arange(self.Orders[order]['wav'][mask][0] + overlap * x * binAngstroms,
+                        self.Orders[order]['wav'][mask][-1] + overlap * x * binAngstroms,
+                        binAngstroms))
         np.append(temp[0], self.Orders[order]['wav'][mask][-1]) # add last wavelength point to first bin edges array
         iowTolerance = iowTolerance
         minPixelsPerBin = minPixelsPerBin
@@ -527,30 +582,47 @@ class Exposure(object):
                 else:
                     print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
-    
-    def full_order_bin_shift_and_scale(self, order=7, binSize=350):
+
+    def test_full_order_bin_shift_and_scale(self, order=7, binSize=350, spline=0):
         self.fit_starting['order'][order] = self.fit_starting['initial']
         self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
         for singlebin in self.Orders[order][binSize]:
             self.fitResults[binSize][order][singlebin] = {}
-            self.small_bin_shift(order, binSize, singlebin)
+            self.test_small_bin_shift(spline=spline, order=order, binSize=binSize, singlebin=singlebin)
         pass
-        
-    def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
+
+    # def full_order_bin_shift_and_scale(self, order=7, binSize=350):
+    #     self.fit_starting['order'][order] = self.fit_starting['initial']
+    #     self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
+    #     for singlebin in self.Orders[order][binSize]:
+    #         self.fitResults[binSize][order][singlebin] = {}
+    #         self.small_bin_shift(order, binSize, singlebin)
+    #     pass
+
+    def test_small_bin_shift(self, spline=0, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
         """docstring for smallBinShift"""
         # TODO check that the full order solution has run.
         try:
             type(self.fitResults['order'][order]['values'])
         except:
             print "It doesn't look like the full order was run... "
-        m = mi.Minuit(self.bin_shift_and_tilt_Akima, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **self.fit_starting['order'][order])
+        m = mi.Minuit(self.test_bin_shift_and_tilt,
+                      spline=spline,
+                      order=order,
+                      binSize=binSize,
+                      singlebin=singlebin,
+                      fix_spline=True,
+                      fix_order=True,
+                      fix_binSize=True,
+                      fix_singlebin=True,
+                      **self.fit_starting['order'][order])
         if veryVerbose==True:
             m.printMode=1
         if robustSearch==True:
             print "Robust search. Beginning initial scan..."
             m.scan(("fshift", 20, -0.5, 0.5))
             print "done."
-        try: 
+        try:
             print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin
             m.set_strategy(2)
             m.migrad()
@@ -575,7 +647,7 @@ class Exposure(object):
             self.fitResults[binSize][order][singlebin]['avpix'] = avpix
             self.fitResults[binSize][order][singlebin]['converged'] = True
             self.fitResults[binSize][order][singlebin]['values']['minuit'] = 1
-            chisq, wav, nflx, nerr, pix, overflx = self.bin_shift_and_tilt_Akima(**self.fitResults[binSize][order][singlebin]['values'])
+            chisq, wav, nflx, nerr, pix, overflx = self.test_bin_shift_and_tilt(**self.fitResults[binSize][order][singlebin]['values'])
             self.fitResults[binSize][order][singlebin]['chisq'] = chisq
             self.fitResults[binSize][order][singlebin]['wav'] = wav
             self.fitResults[binSize][order][singlebin]['nflx'] = nflx
@@ -587,8 +659,60 @@ class Exposure(object):
             self.fitResults[binSize][order][singlebin]['converged'] = False
             print "Serious problem with bin:", singlebin
         pass
-        
-    def bin_shift_and_tilt_Akima(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+
+    # def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
+    #     """docstring for smallBinShift"""
+    #     # TODO check that the full order solution has run.
+    #     try:
+    #         type(self.fitResults['order'][order]['values'])
+    #     except:
+    #         print "It doesn't look like the full order was run... "
+    #     m = mi.Minuit(self.bin_shift_and_tilt_Akima, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **self.fit_starting['order'][order])
+    #     if veryVerbose==True:
+    #         m.printMode=1
+    #     if robustSearch==True:
+    #         print "Robust search. Beginning initial scan..."
+    #         m.scan(("fshift", 20, -0.5, 0.5))
+    #         print "done."
+    #     try:
+    #         print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin
+    #         m.set_strategy(2)
+    #         m.migrad()
+    #         self.fitResults[binSize][order][singlebin]['values'] = m.values
+    #         self.fitResults[binSize][order][singlebin]['errors'] = m.errors
+    #         mask = self.Orders[order]['mask']
+    #         ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
+    #         iok = self.Orders[order][binSize][singlebin]['iok']
+    #         wav = self.Orders[order]['wav'][ok]
+    #         pix = self.Orders[order]['pix'][ok]
+    #         lamb = np.average(wav)
+    #         avpix = np.average(pix)
+    #         cal = m.values['shift'] * c_light / lamb
+    #         calerr = m.errors['shift'] * c_light / lamb
+    #         R = c_light / m.values['sigma'] / 1000.
+    #         Rerr = c_light / m.errors['sigma'] / 1000.
+    #         self.fitResults[binSize][order][singlebin]['avwav'] = lamb
+    #         self.fitResults[binSize][order][singlebin]['cal'] = cal
+    #         self.fitResults[binSize][order][singlebin]['calerr'] = calerr
+    #         self.fitResults[binSize][order][singlebin]['R'] = R
+    #         self.fitResults[binSize][order][singlebin]['Rerr'] = Rerr
+    #         self.fitResults[binSize][order][singlebin]['avpix'] = avpix
+    #         self.fitResults[binSize][order][singlebin]['converged'] = True
+    #         self.fitResults[binSize][order][singlebin]['values']['minuit'] = 1
+    #         chisq, wav, nflx, nerr, pix, overflx = self.bin_shift_and_tilt_Akima(**self.fitResults[binSize][order][singlebin]['values'])
+    #         self.fitResults[binSize][order][singlebin]['chisq'] = chisq
+    #         self.fitResults[binSize][order][singlebin]['wav'] = wav
+    #         self.fitResults[binSize][order][singlebin]['nflx'] = nflx
+    #         self.fitResults[binSize][order][singlebin]['nerr'] = nerr
+    #         self.fitResults[binSize][order][singlebin]['pix'] = pix
+    #         self.fitResults[binSize][order][singlebin]['overflx'] = overflx
+    #         print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
+    #     except:
+    #         self.fitResults[binSize][order][singlebin]['converged'] = False
+    #         print "Serious problem with bin:", singlebin
+    #     pass
+
+    def test_bin_shift_and_tilt(self, spline, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
         """trying to smooth, interpolate, and integrate the fit."""
         mask = self.Orders[order]['mask']
         ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
@@ -600,31 +724,50 @@ class Exposure(object):
         err = self.Orders[order]['err'][ok]
         con = self.Orders[order]['con'][ok]
         pix = self.Orders[order]['pix'][ok]
-        overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
-        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2) 
+        overflx = multiple * slope_to_array(slope, list_of_splines[spline](wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
         else:
             return chi_square, wav, flx/con, err/con, pix, overflx
 
-    def bin_shift_and_tilt_spline(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
-        """trying to smooth, interpolate, and integrate the fit."""
-        mask = self.Orders[order]['mask']
-        ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
-        iok = self.Orders[order][binSize][singlebin]['iok']
-        iow = self.Orders[order]['iow'][iok]
-        iof = self.Orders[order]['iof'][iok]
-        wav = self.Orders[order]['wav'][ok]
-        flx = self.Orders[order]['flx'][ok]
-        err = self.Orders[order]['err'][ok]
-        con = self.Orders[order]['con'][ok]
-        pix = self.Orders[order]['pix'][ok]
-        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset        
-        chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2) 
-        if minuit == 0:
-            return chi_square
-        else:
-            return chi_square, wav, flx/con, err/con, pix, overflx
+    # def bin_shift_and_tilt_Akima(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+    #     """trying to smooth, interpolate, and integrate the fit."""
+    #     mask = self.Orders[order]['mask']
+    #     ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
+    #     iok = self.Orders[order][binSize][singlebin]['iok']
+    #     iow = self.Orders[order]['iow'][iok]
+    #     iof = self.Orders[order]['iof'][iok]
+    #     wav = self.Orders[order]['wav'][ok]
+    #     flx = self.Orders[order]['flx'][ok]
+    #     err = self.Orders[order]['err'][ok]
+    #     con = self.Orders[order]['con'][ok]
+    #     pix = self.Orders[order]['pix'][ok]
+    #     overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+    #     chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
+    #     if minuit == 0:
+    #         return chi_square
+    #     else:
+    #         return chi_square, wav, flx/con, err/con, pix, overflx
+
+    # def bin_shift_and_tilt_spline(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
+    #     """trying to smooth, interpolate, and integrate the fit."""
+    #     mask = self.Orders[order]['mask']
+    #     ok = reduce(np.logical_and, [self.Orders[order][binSize][singlebin]['ok'], mask])
+    #     iok = self.Orders[order][binSize][singlebin]['iok']
+    #     iow = self.Orders[order]['iow'][iok]
+    #     iof = self.Orders[order]['iof'][iok]
+    #     wav = self.Orders[order]['wav'][ok]
+    #     flx = self.Orders[order]['flx'][ok]
+    #     err = self.Orders[order]['err'][ok]
+    #     con = self.Orders[order]['con'][ok]
+    #     pix = self.Orders[order]['pix'][ok]
+    #     overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+    #     chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
+    #     if minuit == 0:
+    #         return chi_square
+    #     else:
+    #         return chi_square, wav, flx/con, err/con, pix, overflx
 
     def make_pretty_results(self):
         self.Results = {}
