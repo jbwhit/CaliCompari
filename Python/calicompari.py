@@ -394,13 +394,17 @@ class Exposure(object):
         """fits a continuum via a spline through the flux values."""
         knots = 10
         edgeTolerance = 0.1
+        remove_orders = []
+        for order in self.safe_orders:
+            mask = self.Orders[order]['mask']
+            if np.sum(mask) < 100:
+                remove_orders.append(order)
+        for order in remove_orders:
+            self.safe_orders.remove(order)
+            print "Removing from safe_orders: ", order
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
             self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
-            if len(self.Orders[order]['wav'][mask]) < 100:
-                self.safe_orders.remove(order)
-                print "Removing from safe_orders: ", order
-                continue
             s = si.LSQUnivariateSpline(self.Orders[order]['wav'][mask],\
                                                                 self.Orders[order]['flx'][mask],\
                                                                 np.linspace(self.Orders[order]['wav'][mask][0]+edgeTolerance,\
