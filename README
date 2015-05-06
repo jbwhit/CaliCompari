@@ -1,5 +1,9 @@
-This repository holds code that allows for relative wavelength calibration comparison between two spectra. 
+# CaliCompari
 
-Most of the code is written in python.
+This repository holds code that allows for relative wavelength calibration comparison between two spectra.
 
-Tyler is now a collaborator.
+Some helpful links:
+
+ - An [extensive overview](http://astronomy.swin.edu.au/~jwhitmore/supercalibration) of how to use CaliCompari with an [AstroTools](https://github.com/jbwhit/AstroTools) helper script.
+ - So, you've supercal'd a spectrum. Now what? Now [this](http://nbviewer.ipython.org/gist/jbwhit/0f4676af2043082de89c).
+
