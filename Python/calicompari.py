@@ -442,7 +442,8 @@ class Exposure(object):
 
 
     def full_order_shift_scale(self, order=7, verbose=False, veryVerbose=False,
-                                    robustSearch=False, first_guesses=self.fit_starting['initial']):
+                                    robustSearch=False,
+                                    first_guesses=None):
         """docstring for dictionaryShift
         first_guesses needs to look something like:
         first_guesses = {}
@@ -468,6 +469,8 @@ class Exposure(object):
                               'error_offset':0.03})
         first_guesses.update({'minuit':0, 'fix_minuit':True})
         """
+        if first_guesses is None:
+            first_guesses = self.fit_starting['initial']
         try:
             m = mi.Minuit(self.order_shift_and_scale_Akima, order=order, fix_order=True, **first_guesses)
             if veryVerbose==True:
