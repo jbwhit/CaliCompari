@@ -401,16 +401,23 @@ class Exposure(object):
                 remove_orders.append(order)
         for order in remove_orders:
             self.safe_orders.remove(order)
-            print "Removing from safe_orders: ", order
+            print "Removing from safe_orders (under 100 useable pixels): ", order
+        remove_orders = []
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
             self.Orders[order]['con'] = np.zeros_like(self.Orders[order]['wav'])
-            s = si.LSQUnivariateSpline(self.Orders[order]['wav'][mask],\
+            try:
+                s = si.LSQUnivariateSpline(self.Orders[order]['wav'][mask],\
                                                                 self.Orders[order]['flx'][mask],\
                                                                 np.linspace(self.Orders[order]['wav'][mask][0]+edgeTolerance,\
                                                                 self.Orders[order]['wav'][mask][-1]-edgeTolerance, knots),\
                                                                 w=self.Orders[order]['err'][mask])
-            self.Orders[order]['con'][mask] = s(self.Orders[order]['wav'][mask]) # new array is made -- continuum
+                self.Orders[order]['con'][mask] = s(self.Orders[order]['wav'][mask])
+            except:
+                remove_orders.append(order)
+        for order in remove_orders:
+            self.safe_orders.remove(order)
+            print "Removing from safe_orders (sparse-ness): ", order
         pass
 
     def continuum_fit_2(self, knots=10, nsig=4.0):
