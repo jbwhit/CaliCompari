@@ -7,3 +7,386 @@ Some helpful links:
  - An [extensive overview](http://astronomy.swin.edu.au/~jwhitmore/supercalibration) of how to use CaliCompari with an [AstroTools](https://github.com/jbwhit/AstroTools) helper script.
  - So, you've supercal'd a spectrum. Now what? Now [this](http://nbviewer.ipython.org/gist/jbwhit/0f4676af2043082de89c).
 
+Supercalibration Cookbook
+=========================
+
+This should provide reasonably helpful instructions for how do the solar (either asteroid or solar twin) supercalibration method on UVES exposures.
+There's a bit at the end which talks of the slight difference between iodine and solar methods (namely you have to point to the correct reference spectrum).
+
+Annoying bit
+------------
+
+Getting set up. I do everything in the bash shell, so you might have to make adjustments occasionally if you use something else.
+
+Clone astrotools and add astrotools to `PATH`:
+
+```bash
+cd ~/github/
+git clone https://github.com/jbwhit/AstroTools.git
+
+# add this to your .bashrc (or equivalent .cshrc)
+export PATH=${PATH}:/your-user/path/AstroTools/
+```
+
+Clone supercalibration and add to `PYTHONPATH`:
+
+```bash
+cd ~/github/
+git clone https://github.com/jbwhit/CaliCompari.git
+
+# add supercal/Python to PYTHONPATH
+export PYTHONPATH=${PYTHONPATH}:/your/user/github/CaliCompari/Python
+```
+
+Test that the above commands work by opening a new terminal:
+
+    $ supercalibrate
+
+Which should produce the following output and finish without running anything interesting:
+
+    test.analysis.p
+    test.analysis.p test.analysis.header
+    No header_file found.
+    cali_500_test.analysis.gz
+    Not a fits file. test.analysis.p
+    Consider saving a faster-loading calibration file.
+
+It might fail for several reasons. The first is the python path being incorrect. Another is that several non-standard packages are also required, so try running the following commands. (If you are running OSX 10.9.2 see note below this list):
+
+```bash
+# try without sudo first, if needed include it; remove brackets
+[sudo] pip install -U iminuit
+[sudo] pip install -U barak
+[sudo] pip install -U pyfits
+```
+
+Note from Julija Bagdonaite if installing `iminuit` and `barak` on OSX 10.9.2:
+
+```bash
+sudo ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install iminuit
+sudo ARCHFLAGS=-Wno-error=unused-command-line-argument-hard-error-in-future pip install barak
+```
+
+Start an instance of python and type:
+
+```python
+import calicompari
+```
+
+If it's working it should return you to the python interpreter without an error.
+
+Finally, you need to install [UVES_popler](http://astronomy.swin.edu.au/~mmurphy/UVES_popler/) with a version that runs with the following options (look for -atmomask):
+
+    Mode options:
+     -replay     =       0    : Use interactive action replay mode
+     -macmap [FILE]           : Read file to map pipeline product path and file names
+                                 between case-sensitive and case-insensitive operating
+                                 systems, e.g. Mac and linux.
+     -vshift [FILE]           : Read file to apply a velocity shift to each spectrum.
+                                 File should specify full path name of each file to be
+                                 shifted, followed by the velocity shift in km/s.
+     -atmomask [FILE]         : Read file to mask spectra for atmospheric/telluric
+                                 features. File should have format: wav. start, wav. end
+                                 [Ang.], residual intensity, wav. center [Ang.].
+                                 Wavelengths are in vacuum.
+     -distort                 : Apply a random velocity shift, drift and distortion to
+                                 each echelle order. Use this flag to remove previously
+                                 applied distortions saved in UPL file.
+     -h, -help                : Print this message.
+
+
+After all of that, you should be ready to start.
+
+# Fun bit
+
+I promised a fun bit, but a few more words first. I developed these scripts after working for a long time and running into many problems. A lot of things are dependent on how I set up all kinds files, so if you go changing things please know that stuff might start to break. The good news is that when it breaks, it usually breaks loudly.
+
+The main piece of code you will be using (though initially not directly) is the `calicompari` python module.
+
+The first thing to keep in mind that there are two main types of supercalibration: Iodine and Solar whose only difference is in which reference spectrum you use (included in the calicompari).
+
+Also, there are two main spectrographs: UVES and HIRES (which matters when preparing the data to be fed to UVES_popler).
+
+
+## An example solar UVES supercal
+
+It should be able to do this in your reduction directory, however, I think the following is an example of the minimum files needed to supercalibrate two exposures.
+
+```bash
+ls
+```
+
+    err_hip102793_sci_564_01_l.fits      fxb_hip102793_sci_564_01_l.fits
+    err_hip102793_sci_564_01_u.fits      fxb_hip102793_sci_564_01_u.fits
+    err_hip102793_sci_564_02_l.fits      fxb_hip102793_sci_564_02_l.fits
+    err_hip102793_sci_564_02_u.fits      fxb_hip102793_sci_564_02_u.fits
+    errthar_hip102793_sci_564_01_l.fits  hip102793_sci_564_01.fits
+    errthar_hip102793_sci_564_01_u.fits  hip102793_sci_564_02.fits
+    errthar_hip102793_sci_564_02_l.fits  thar_wav_564_01_01.fits
+    errthar_hip102793_sci_564_02_u.fits  thar_wav_564_02_01.fits
+    errwhip102793_sci_564_01_l.fits      wpol_hip102793_sci_564_01_l.fits
+    errwhip102793_sci_564_01_u.fits      wpol_hip102793_sci_564_01_u.fits
+    errwhip102793_sci_564_02_l.fits      wpol_hip102793_sci_564_02_l.fits
+    errwhip102793_sci_564_02_u.fits      wpol_hip102793_sci_564_02_u.fits
+
+First, get everything into a format that UVES_popler understands.
+
+## solar uves script
+
+These lines assume that the folder the reduction is in is named same as science object.
+If that's not the case, change this part. Also, the `grep -v _up_` command makes it clean to re-run.
+
+```bash
+sciencename=${PWD##*/}
+echo $sciencename
+ls $PWD/fxb_* | grep -v _up_ > ${sciencename}_red.list
+```
+
+UVES_popler takes a file that is a list absolute paths to the science exposures to be reduced.
+The `atmomask.dat` file is included in the AstroTools repository, so link to that file if the next command fails.
+
+```bash
+popler-uves-iodine ${sciencename}_red.list
+```
+
+`popler-uves-iodine` is an astrotools script that does the following:
+
+```{#popler-uves-iodine .bash .numberLines}
+#!/bin/bash
+# Takes the inputfiles.list (full paths)
+# CPL reduced, iodine exposure
+
+# Checks if telluric lines a system variable.
+
+if [ -z "$POPLER_TELLURIC" ]
+then
+    echo "Please set up sky lines environment variable."
+    echo "POPLER_TELLURIC=\"path_to_telluric.dat\""
+    echo "export POPLER_TELLURIC"
+    exit
+else
+    UVES_popler $1 -raw -save 2 -helio -atmomask $POPLER_TELLURIC -disp 1.30
+fi
+```
+
+
+
+The final command popler's the list of files, and saves in a special format `-raw` and immediately exists after creating those files `-save 2`. It is not heliocentric corrected `-helio`, and an atmospheric mask is given (I've forced mine to be a shell variable, and to throw an error if it isn't set). Finally, there is a `-disp 1.30` which should be ignored in principle because the `-raw` format gives the spectrum pixel-by-pixel without any merging or redispersing. [Michael if any of this is wrong, please let me know].
+
+The new files created are named:
+
+
+```bash
+ls fxb_hip102793_sci_564_0*up*
+```
+
+    fxb_hip102793_sci_564_01_l_up_001.fits  fxb_hip102793_sci_564_02_l_up_003.fits
+    fxb_hip102793_sci_564_01_u_up_002.fits  fxb_hip102793_sci_564_02_u_up_004.fits
+
+I often look at a large collection of these files, which makes this naming convention unhelpful overall. So I `cp` these files to something that tells me extra info that I find useful.
+
+```bash
+for infile in fxb*up_*fits;
+do
+    newname=$(echo $(dfits $infile | fitsort -d OBSDATE) | awk '{print substr($2,0,10)"-"$1}')
+    cp $infile $newname
+done
+```
+
+So they are now named by [ISO 8601](http://www.iso.org/iso/home/standards/iso8601.htm) date of observation:
+
+    2004-03-28-fxb_hip102793_sci_564_01_l_up_001.fits
+    2004-03-28-fxb_hip102793_sci_564_01_u_up_002.fits
+    2004-03-28-fxb_hip102793_sci_564_02_l_up_003.fits
+    2004-03-28-fxb_hip102793_sci_564_02_u_up_004.fits
+
+Now they are named so that I can look at hundreds of these files in a single directory and know at a glance when they were taken.
+Now, I would like to know exactly which raw science and arc files were used to create this final data product. So, I grab the headers from each of those raw files and put it into a similarly named file with the suffix: `.header` via the `arc-flux-uvesheader` script.
+
+```bash
+for infile in [1,2]*_up_*fits;
+do
+    arc-flux-uvesheader $infile
+done
+```
+
+The `arc-flux-uvesheader` looks like:
+
+```{#arc-flux-uvesheader .python .numberLines}
+#!/usr/bin/env python
+import pyfits as pf
+import cPickle as pickle
+import gzip
+import sys
+import re
+from glob import glob
+
+# Usage: feed in popler'ed _up_ file (done for MAKEE)
+# arc-flux-header 2009-11-03-Flux-199_1-Hiltner600-11-_up_009.fits
+# print re.split('_|-', start)
+
+popler_file = sys.argv[1]
+
+globarc = glob("thar_wav*" + "_".join(re.split('_|-', popler_file)[6:8]) + "*.fits")
+globflux = glob("*".join(re.split('_|-', popler_file)[4:8]) + "*.fits")
+
+if len(globarc) > 1 or len(globarc) == 0:
+    print globarc, "thar_wav*" + "_".join(re.split('_|-', popler_file)[6:8]) + "*.fits"
+    raise Exception("Too many (or few) arc files found.")
+
+if len(globflux) > 1 or len(globflux) == 0:
+    print globflux, "*".join(re.split('_|-', popler_file)[4:8]) + "*.fits"
+    raise Exception("Too many (or few) flux files found.")
+
+arc_file, flux_file = globarc[0], globflux[0]
+
+print "Arc:", arc_file
+print "Flux:", flux_file
+
+outfile = '.'.join(popler_file.split('.')[:-1])
+outfile = outfile + ".header"
+print outfile
+
+arc_hdu = pf.open(arc_file)
+arc_header = {}
+for key, value in arc_hdu[0].header.iteritems():
+    arc_header[key] = value
+
+flux_hdu = pf.open(flux_file)
+flux_header = {}
+for key, value in flux_hdu[0].header.iteritems():
+    flux_header[key] = value
+
+list_of_dictionaries = [arc_header, flux_header]
+
+with gzip.open(outfile, 'wb') as file_handle:
+    pickle.dump(list_of_dictionaries, file_handle, pickle.HIGHEST_PROTOCOL)
+```
+
+I make a link to the atmospheric sky line-list [this is so that when I run my script it also mask out sky lines or any other lines if you happen to know a star has a strong feature somewhere].
+
+```bash
+ln -s /home/jwhitmor/github/CaliCompari/Info/config.wavekill .
+```
+
+Second to last step, because it's solar, I create the `run.1.bash` script.
+
+```bash
+for infile in [1,2]*_up_*fits;
+do
+    echo supercalibrate $infile ~/github/CaliCompari/FTS/KPNO2010.contin.ascii
+done > run.1.bash
+```
+
+The only thing left to do here is to run:
+
+```bash
+bash run.1.bash
+```
+
+Or, if you are sneaky, something like:
+
+```bash
+cat run.1.bash | parallel -j-8 --nice 15
+```
+
+The final files which are named things like:
+
+    cali_500_2004-03-28-fxb_hip102793_sci_564_01_l_up_001.gz
+    cali_500_2004-03-28-fxb_hip102793_sci_564_01_u_up_002.gz
+    cali_500_2004-03-28-fxb_hip102793_sci_564_02_l_up_003.gz
+    cali_500_2004-03-28-fxb_hip102793_sci_564_02_u_up_004.gz
+    small_cali_500_2004-03-28-fxb_hip102793_sci_564_01_l_up_001.gz
+    small_cali_500_2004-03-28-fxb_hip102793_sci_564_01_u_up_002.gz
+    small_cali_500_2004-03-28-fxb_hip102793_sci_564_02_l_up_003.gz
+    small_cali_500_2004-03-28-fxb_hip102793_sci_564_02_u_up_004.gz
+
+If you have gotten to this point, you've overcome the tricky part, and you've graduated to the slightly tedious step. Good luck.
+
+To recap, if everything works perfectly:
+
+
+
+~~~{#solar .bash .numberLines}
+###########################
+# UVES SOLAR
+
+sciencename=${PWD##*/}
+echo $sciencename
+ls $PWD/fxb_* | grep -v _up_ > ${sciencename}_red.list
+
+popler-uves-iodine ${sciencename}_red.list
+
+for infile in fxb*up_*fits;
+do
+    newname=$(echo $(dfits $infile | fitsort -d OBSDATE) | awk '{print substr($2,0,10)"-"$1}')
+    cp $infile $newname
+done
+
+for infile in [1,2]*_up_*fits;
+do
+    arc-flux-uvesheader $infile
+done
+
+ln -s /home/jwhitmor/github/CaliCompari/Info/config.wavekill .
+
+for infile in [1,2]*_up_*fits;
+do
+    echo supercalibrate $infile /home/jwhitmor/github/CaliCompari/FTS/KPNO2010.contin.ascii
+done > run.1.bash
+
+bash run.1.bash
+~~~
+
+And if doing an iodine exposure:
+
+~~~{#iodine .bash .numberLines}
+###########################
+# UVES Iodine
+
+sciencename=${PWD##*/}
+echo $sciencename
+ls $PWD/fxb_* | grep -v _up_ > ${sciencename}_red.list
+
+popler-uves-iodine ${sciencename}_red.list
+
+for infile in fxb*up_*fits;
+do
+    newname=$(echo $(dfits $infile | fitsort -d OBSDATE) | awk '{print substr($2,0,10)"-"$1}')
+    cp $infile $newname
+done
+
+for infile in [1,2]*_up_*fits;
+do
+    arc-flux-uvesheader $infile
+done
+
+ln -s /home/jwhitmor/github/CaliCompari/Info/config.wavekill .
+
+for infile in [1,2]*_up_*fits;
+do
+    echo supercalibrate $infile /home/jwhitmor/github/CaliCompari/FTS/vlt.2013-12-07.txt.gz
+done > run.1.bash
+
+bash run.1.bash
+~~~
+
+
+
+
+# Part Two
+
+From here on out, I recommend using the `ipython` [notebook](http://ipython.org/notebook.html). It's a fantastic tool that allows for seamless data plotting and interaction. An example what this looks like is given [here](http://nbviewer.ipython.org/gist/jbwhit/0f4676af2043082de89c).
+
+```bash
+[sudo] pip install -U ipython
+```
+
+If you don't do use `ipython`, I have provided an example script in the AstroTools package called: `interactive-supercal` which takes a file like:
+
+```bash
+interactive-supercal small_cali_500_2004-03-12-fxb_hip67534_sci_564_01_l_up_001.gz
+```
+
+And allows you to plot the results. Make a copy of this script for each file if you are going to use this script in this way. I strongly suggest using the `ipython` notebook method.
+
