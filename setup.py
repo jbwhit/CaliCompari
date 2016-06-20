@@ -1,10 +1,10 @@
 from distutils.core import setup
 
-version_file = open('calicompari/VERSION')
-version = version_file.read().strip()
+# version_file = open('VERSION')
+# version = version_file.read().strip()
 
 setup(name="CaliCompari",
-      version=version,
+      version='0.0.9',
       description="Compare spectra with reference spectrum.",
       py_modules=['calicompari'],
       author='Jonathan Whitmore',
