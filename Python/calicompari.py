@@ -85,17 +85,13 @@ class AutoVivification(dict):
             value = self[item] = type(self)()
             return value
 
-def slope_to_array(slope, wavelength_array):
-    """Return a wavelength array that is modified by a slope
+def slope_to_array(slope, wavelength_array, flux_array):
+    """Return a flux array that is modified by a slope
     across the array."""
     import numpy as np
     midpoint = np.average([wavelength_array[0], wavelength_array[-1]])
-    return slope * (wavelength_array - midpoint) + wavelength_array
-
-def slope_to_array_old(slope, array):
-    """Previous implementation."""
-    import numpy as np
-    return np.linspace(-slope, slope, num=len(array)) + array
+    factor = 1.0 + slope * (wavelength_array - midpoint)
+    return factor * flux_array
 
 def load_exposure(filename='big.gz'):
     """load_exposure recreates the final fit """
@@ -510,7 +506,15 @@ class Exposure(object):
         err = self.Orders[order]['err'][mask]
         con = self.Orders[order]['con'][mask]
         pix = self.Orders[order]['pix'][mask]
-        overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope,
+                                            wav + shift,
+                                            interp.interp_Akima(wav + shift,
+                                                                iow,
+                                                                convolve.convolve_constant_dv(iow,
+                                                                                              iof,
+                                                                                              vfwhm=sigma)
+                                                                )
+                                            ) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
@@ -527,7 +531,15 @@ class Exposure(object):
         err = self.Orders[order]['err'][mask]
         con = self.Orders[order]['con'][mask]
         pix = self.Orders[order]['pix'][mask]
-        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope,
+                                            wav + shift,
+                                            interp.interp_spline(wav + shift,
+                                                                 iow,
+                                                                 convolve.convolve_constant_dv(iow,
+                                                                                               iof,
+                                                                                               vfwhm=sigma)
+                                                                 )
+                                            ) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
@@ -640,7 +652,15 @@ class Exposure(object):
         err = self.Orders[order]['err'][ok]
         con = self.Orders[order]['con'][ok]
         pix = self.Orders[order]['pix'][ok]
-        overflx = multiple * slope_to_array(slope, interp.interp_Akima(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope,
+                                            wav + shift,
+                                            interp.interp_Akima(wav + shift,
+                                                                iow,
+                                                                convolve.convolve_constant_dv(iow,
+                                                                                              iof,
+                                                                                              vfwhm=sigma)
+                                                                )
+                                            ) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
@@ -659,7 +679,15 @@ class Exposure(object):
         err = self.Orders[order]['err'][ok]
         con = self.Orders[order]['con'][ok]
         pix = self.Orders[order]['pix'][ok]
-        overflx = multiple * slope_to_array(slope, interp.interp_spline(wav + shift, iow, convolve.convolve_constant_dv(iow, iof, vfwhm=sigma))) + offset
+        overflx = multiple * slope_to_array(slope,
+                                            wav + shift,
+                                            interp.interp_spline(wav + shift,
+                                                                 iow,
+                                                                 convolve.convolve_constant_dv(iow,
+                                                                                               iof,
+                                                                                               vfwhm=sigma)
+                                                                 )
+                                            ) + offset
         chi_square = np.sum((overflx - flx/con)**2 / (err/con)**2)
         if minuit == 0:
             return chi_square
