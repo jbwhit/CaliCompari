@@ -1,6 +1,6 @@
 from distutils.core import setup
 
-version_file = open('VERSION')
+version_file = open('calicompari/VERSION')
 version = version_file.read().strip()
 
 setup(name="CaliCompari",
