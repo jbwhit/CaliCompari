@@ -36,11 +36,11 @@ from barak import interp
 import numpy as np
 import scipy
 import scipy as sp
-# from scipy import optimize
 import scipy.interpolate as si
 import scipy.signal as ss
 import scipy.constants as spc
 import time
+import json
 import datetime
 import argparse
 from ConfigParser import RawConfigParser, SafeConfigParser
@@ -57,6 +57,7 @@ pl.rcParams['figure.figsize'] = 16, 8  # that's default image size for this inte
 import iminuit as mi
 
 c_light = spc.c
+# np.seterr(divide='ignore', invalid='ignore')
 
 help_message = '''
 Various limitations:
@@ -270,7 +271,8 @@ class Exposure(object):
 
         fit.
         """
-    def __init__(self, arcFile='', reduction_program='', calibration_type='', calibration_file='', exposure_file='', header_file=''):
+    def __init__(self, arcFile='', reduction_program='', calibration_type='',
+                 calibration_file='', exposure_file='', header_file='', first_guess_file=''):
         """docstring for __init__"""
         super(Exposure, self).__init__()
         self.arcFile = arcFile # a calibration Arc File
@@ -278,6 +280,7 @@ class Exposure(object):
         self.reduction_program = reduction_program # reduction software used
         self.calibration_type = calibration_type # Calibration type: iodine, asteroid, none
         self.calibration_file = calibration_file # Calibration File
+        self.first_guess_file = first_guess_file # First guesses file
 
         self.header_file = header_file # science and arc file headers
         if self.header_file:
@@ -294,8 +297,12 @@ class Exposure(object):
         self.fit_starting['initial'].update({'multiple':1.37, 'fix_multiple':False, 'limit_multiple':(0.1, 20.0), 'error_multiple':0.03})
         self.fit_starting['initial'].update({'offset':0.002, 'fix_offset':False, 'limit_offset':(-2.0, 2.0), 'error_offset':0.03})
         self.fit_starting['initial'].update({'minuit':0, 'fix_minuit':True})
-        # self.fit_starting['initial'].update({'elements':100, 'fix_elements':True}) # UNDO THIS if minuit!
-        # self.fit_starting['initial'].update({'set_strategy':2}) # UNDO THIS if minuit!
+        if self.first_guess_file:
+            with open(self.first_guess_file, 'r') as file_handle:
+                self.first_guesses = json.load(file_handle)
+        else:
+            self.first_guesses = self.fit_starting['initial']
+
         self.fitResults = AutoVivification()
         if self.exposure_file.split('.')[-1] == 'fits':
             print "A fits exposure file."
@@ -319,6 +326,29 @@ class Exposure(object):
         else:
             print "Not a fits file.", self.exposure_file
         pass
+
+    def scangrid(self, *args, **kwargs):
+        """
+        Generator function which returns lists of parameter (name, value)
+        2-tuples via yields (i.e. in a for-expression).
+
+        The arguments are 4-tuples of (name, numpts, low, high) for each
+        parameter; the generator iterations will then visit each of the
+        lattice points in a grid with num points between low..high in each
+        param.
+        """
+        vec = kwargs.get("vec", [])
+        if args:
+            var, npts, low, high = args[0]
+            for val in np.linspace(low, high, npts):
+                newargs = args[1:]
+                newvec = vec + [(var, val)]
+                newkwargs = kwargs
+                newkwargs["vec"] = newvec
+                for i in scangrid(*newargs, **newkwargs):
+                    yield i
+        else:
+            yield vec
 
     def load_reference_spectra(self):
         """docstring for load_reference_spectra"""
@@ -373,6 +403,8 @@ class Exposure(object):
             masks = []
             masks.append(self.Orders[order]['err'] > errorcutoff)
             masks.append(self.Orders[order]['flx'] > flxcutoff)
+            # print self.Orders[order]['err']
+            # print self.Orders[order]['flx']
             masks.append(np.select([self.Orders[order]['err'] > 0],
                                    [np.nan_to_num(self.Orders[order]['flx']/self.Orders[order]['err']) >= sncutoff]))
             try:
@@ -580,22 +612,30 @@ class Exposure(object):
                     print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
 
-    def full_order_bin_shift_and_scale(self, order=7, binSize=350):
+    def full_order_bin_shift_and_scale(self, order=7, binSize=350, override_order_fit=False):
         self.fit_starting['order'][order] = self.fit_starting['initial']
         self.fit_starting['order'][order].update(self.fitResults['order'][order]['values'])
         for singlebin in self.Orders[order][binSize]:
             self.fitResults[binSize][order][singlebin] = {}
-            self.small_bin_shift(order, binSize, singlebin)
+            if override_order_fit:
+                self.small_bin_shift(order, binSize, singlebin, override_order_fit=True)
+            else:
+                self.small_bin_shift(order, binSize, singlebin)
         pass
 
-    def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False, robustSearch=False):
+    def small_bin_shift(self, order=7, binSize=350, singlebin=2, veryVerbose=False,
+                        robustSearch=False, override_order_fit=False):
         """docstring for smallBinShift"""
         # TODO check that the full order solution has run.
         try:
             type(self.fitResults['order'][order]['values'])
         except:
             print "It doesn't look like the full order was run... "
-        m = mi.Minuit(self.bin_shift_and_tilt_Akima, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **self.fit_starting['order'][order])
+        if override_order_fit:
+            starting_values = self.first_guesses
+        else:
+            starting_values = self.fit_starting['order'][order]
+        m = mi.Minuit(self.bin_shift_and_tilt_Akima, order=order, binSize=binSize, singlebin=singlebin, fix_order=True, fix_binSize=True, fix_singlebin=True, **starting_values)
         if veryVerbose==True:
             m.printMode=1
         if robustSearch==True:
