@@ -41,7 +41,7 @@ wav = 10. * wav # convert from nm to Angstroms)
 binSize = 3000 # number of pixels of iodine per bin
 smoothFactor = 0.0 # 0 forces spline through all points.
 argMaxValues = [np.argmax(flx[i:i+binSize]) + i for i in \
-                range(0, len(wav), binSize)]
+                xrange(0, len(wav), binSize)]
 spline = si.UnivariateSpline(wav[argMaxValues], flx[argMaxValues], \
                               s=smoothFactor)
 
@@ -51,7 +51,7 @@ def plotSplineSmooth(binSize=binSize, smoothFactor=smoothFactor, \
   """docstring for splinesmooth"""
   binSize = binSize # number of pixels of iodine
   argMaxValues = [np.argmax(flx[i:i+binSize]) + i for i in \
-                  range(0, len(wav), binSize)] 
+                  xrange(0, len(wav), binSize)] 
   spline = si.UnivariateSpline(wav[argMaxValues], flx[argMaxValues], \
                                 s=smoothFactor)
   plot(wav[argMaxValues], flx[argMaxValues])

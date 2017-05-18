@@ -19,7 +19,7 @@ starting_wavenumber = hdu[0].header['CRVAL1']
 delta = hdu[0].header['CDELT1']
     
 fluxes = hdu[0].data
-x = np.array(list(range(len(fluxes))))
+x = np.array(range(len(fluxes)))
     
 wavelengths = 1.0 / (np.ones_like(x) * starting_wavenumber + x * delta)
 # reverse order

@@ -43,15 +43,14 @@ import time
 import json
 import datetime
 import argparse
-from configparser import RawConfigParser, SafeConfigParser
+from ConfigParser import RawConfigParser, SafeConfigParser
 import random as ra
 import itertools
 import pyfits as pf
-import pickle as pickle
+import cPickle as pickle
 import gzip
 import matplotlib.pylab as pl
 from matplotlib.backends.backend_pdf import PdfPages
-from functools import reduce
 
 pl.rcParams['figure.figsize'] = 16, 8  # that's default image size for this interactive session
 
@@ -179,19 +178,19 @@ def hand_tweak( filename_expo,
     tempx = []
     tempy = []
     infile, expo = filename_expo
-    if ("hand_tweak" in list(expo.keys())) and (clobber == False):
-        print("Turn clobber=True to modify this.")
+    if ("hand_tweak" in expo.keys()) and (clobber == False):
+        print "Turn clobber=True to modify this."
         return
-    if "hand_tweak" not in list(expo.keys()):
-        print("Must first create hand_tweak dictionary. Some defaults.")
-        print("""expo["hand_tweak"] = {}
+    if "hand_tweak" not in expo.keys():
+        print "Must first create hand_tweak dictionary. Some defaults."
+        print """expo["hand_tweak"] = {}
         expo["hand_tweak"]["upper_error_bound"] = 200.0
         expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
         expo["hand_tweak"]["badorders"] = []
         expo["hand_tweak"]["orderbegin"] = 0
         expo["hand_tweak"]["orderend"] = -1
         expo["hand_tweak"]["offset"] = 0.
-        expo["hand_tweak"]["minimum_number_of_chunks"] = 5""")
+        expo["hand_tweak"]["minimum_number_of_chunks"] = 5"""
 
     upper_error_bound = expo["hand_tweak"]["upper_error_bound"]
     upper_wavelength_cutoff = expo["hand_tweak"]["upper_wavelength_cutoff"]
@@ -231,33 +230,33 @@ def hand_tweak( filename_expo,
         pl.xticks(fontsize=20.0)
         pl.ylabel("v_shift (m/s)", fontsize=20.0)
         pl.yticks(fontsize=20.0)
-    print("Filename: ", infile)
-    print("Slope: ", str(round(slope * 1000, 2)) + " m/s/1000 A")
-    print("Current setup: ")
-    print(" Discard data points with error larger than: ", upper_error_bound)
-    print(" Exclude wavelenths greater than: ", upper_wavelength_cutoff)
-    print(" Chunks each order between indices: ", orderbegin, orderend)
-    print(" Removed orders: ", [order for order in badorders])
-    print(" Offset: ", offset)
-    print(" Min # chunks required / order: ", minimum_number_of_chunks)
+    print "Filename: ", infile
+    print "Slope: ", str(round(slope * 1000, 2)) + " m/s/1000 A"
+    print "Current setup: "
+    print " Discard data points with error larger than: ", upper_error_bound
+    print " Exclude wavelenths greater than: ", upper_wavelength_cutoff
+    print " Chunks each order between indices: ", orderbegin, orderend
+    print " Removed orders: ", [order for order in badorders]
+    print " Offset: ", offset
+    print " Min # chunks required / order: ", minimum_number_of_chunks
     try:
         instrument = expo['flux_header']['INSTRUME']
         if instrument == "UVES":
-            key = [key for key in list(expo['flux_header'].keys()) if "WLEN" in str(key)][0]
+            key = [key for key in expo['flux_header'].keys() if "WLEN" in str(key)][0]
             center_wavelength = expo['flux_header'][key]
             expo["hand_tweak"]["center_wavelength"] = center_wavelength
             expo["hand_tweak"]["center_offset"] = slope * center_wavelength + intercept
     except:
         pass
     if help == True:
-        print("""Some help:
+        print """Some help:
         expo["hand_tweak"]["upper_error_bound"] = 200.0
         expo["hand_tweak"]["upper_wavelength_cutoff"] = 7600.0
         expo["hand_tweak"]["badorders"] = []
         expo["hand_tweak"]["orderbegin"] = 0
         expo["hand_tweak"]["orderend"] = -1
         expo["hand_tweak"]["offset"] = 0.
-        expo["hand_tweak"]["minimum_number_of_chunks"] = 5""")
+        expo["hand_tweak"]["minimum_number_of_chunks"] = 5"""
     pass
 
 class Exposure(object):
@@ -306,7 +305,7 @@ class Exposure(object):
 
         self.fitResults = AutoVivification()
         if self.exposure_file.split('.')[-1] == 'fits':
-            print("A fits exposure file.")
+            print "A fits exposure file."
             self.Orders = {}
             hdu = pf.open(self.exposure_file)
             self.header = hdu[0].header
@@ -320,12 +319,12 @@ class Exposure(object):
                     self.Orders[index]['pix'] = np.arange(len(self.Orders[index]['wav']))
                 except:
                     self.exposureHeader = hdu[-1].header
-            for field in list(self.Orders.keys()):
+            for field in self.Orders.keys():
                 if len(self.Orders[field]) < 1:
-                    print("deleting", field)
+                    print "deleting", field
                     del(self.Orders[field])
         else:
-            print("Not a fits file.", self.exposure_file)
+            print "Not a fits file.", self.exposure_file
         pass
 
     def scangrid(self, *args, **kwargs):
@@ -356,9 +355,9 @@ class Exposure(object):
         try:
             iow, iof = np.loadtxt(self.calibration_file)
         except:
-            print("Consider saving a faster-loading calibration file.")
+            print "Consider saving a faster-loading calibration file."
             iow, iof = np.loadtxt(self.calibration_file, unpack='True')
-        print("Reference FTS wavelength range:", iow[0], iow[-1])
+        print "Reference FTS wavelength range:", iow[0], iow[-1]
         self.safe_orders = []
         for order in self.Orders:
             self.safe_orders.append(order)
@@ -369,15 +368,15 @@ class Exposure(object):
                         self.Orders[order]['iow'] = iow[ok].copy()
                         self.Orders[order]['iof'] = iof[ok].copy()
                 except:
-                    print("Order", order, "is outside overlap with reference FTS.")
+                    print "Order", order, "is outside overlap with reference FTS."
         for order in self.Orders:
             """removes orders"""
             try:
                 len(self.Orders[order]['iow'])
-                print(order, "is safe.")
+                print order, "is safe."
             except:
                 self.safe_orders.remove(order)
-                print(order, "was removed.")
+                print order, "was removed."
         pass
 
     def cleanup(self, verbose=False):
@@ -394,9 +393,9 @@ class Exposure(object):
         try:
             wavekill = parser.get('skylines','remove')
         except:
-            print("Warning: not removing skylines (if you want this create a config.wavekill file).")
+            print "Warning: not removing skylines (if you want this create a config.wavekill file)."
         if verbose==True:
-            print("Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+            print "Beginning cleanup of data...", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
         errorcutoff = 0.0
         flxcutoff = 0.0
         sncutoff = 10.0
@@ -430,7 +429,7 @@ class Exposure(object):
                 remove_orders.append(order)
         for order in remove_orders:
             self.safe_orders.remove(order)
-            print("Removing from safe_orders (under 100 useable pixels): ", order)
+            print "Removing from safe_orders (under 100 useable pixels): ", order
         remove_orders = []
         for order in self.safe_orders:
             mask = self.Orders[order]['mask']
@@ -446,7 +445,7 @@ class Exposure(object):
                 remove_orders.append(order)
         for order in remove_orders:
             self.safe_orders.remove(order)
-            print("Removing from safe_orders (sparse-ness): ", order)
+            print "Removing from safe_orders (sparse-ness): ", order
         pass
 
     def continuum_fit_2(self, knots=10, nsig=4.0):
@@ -512,10 +511,10 @@ class Exposure(object):
             if veryVerbose==True:
                 m.printMode=1
             if robustSearch==True:
-                print("Robust search. Beginning initial scan...")
+                print "Robust search. Beginning initial scan..."
                 m.scan(("fshift", 20, -0.5, 0.5))
-                print("done.")
-            print("Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+                print "done."
+            print "Finding initial full order shift/fit", '\n', datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
             m.set_strategy(2)
             m.migrad()
             self.fitResults['order'][order]['values'] = m.values
@@ -525,7 +524,7 @@ class Exposure(object):
                 pass
             self.fitResults['order'][order]['errors'] = m.errors
         except:
-            print("Serious problem with order:", order)
+            print "Serious problem with order:", order
         pass
 
 
@@ -610,7 +609,7 @@ class Exposure(object):
                     self.Orders[order][binSize][COUNTER]['iok'] = (self.Orders[order]['iow'] > edgearray[i] - iowTolerance) & (self.Orders[order]['iow'] <= edgearray[i + 1] + iowTolerance)
                     COUNTER += 1
                 else:
-                    print("Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it.")
+                    print "Bin ", i, " would have had less than ", minPixelsPerBin, " -- not creating a bin for it."
         pass
 
     def full_order_bin_shift_and_scale(self, order=7, binSize=350, override_order_fit=False):
@@ -631,7 +630,7 @@ class Exposure(object):
         try:
             type(self.fitResults['order'][order]['values'])
         except:
-            print("It doesn't look like the full order was run... ")
+            print "It doesn't look like the full order was run... "
         if override_order_fit:
             starting_values = self.first_guesses
         else:
@@ -640,11 +639,11 @@ class Exposure(object):
         if veryVerbose==True:
             m.printMode=1
         if robustSearch==True:
-            print("Robust search. Beginning initial scan...")
+            print "Robust search. Beginning initial scan..."
             m.scan(("fshift", 20, -0.5, 0.5))
-            print("done.")
+            print "done."
         try:
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin)
+            print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "Finding initial shift/fit for order:", order, "and bin:", singlebin
             m.set_strategy(2)
             m.migrad()
             self.fitResults[binSize][order][singlebin]['values'] = m.values
@@ -675,10 +674,10 @@ class Exposure(object):
             self.fitResults[binSize][order][singlebin]['nerr'] = nerr
             self.fitResults[binSize][order][singlebin]['pix'] = pix
             self.fitResults[binSize][order][singlebin]['overflx'] = overflx
-            print(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished.")
+            print datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), "finished."
         except:
             self.fitResults[binSize][order][singlebin]['converged'] = False
-            print("Serious problem with bin:", singlebin)
+            print "Serious problem with bin:", singlebin
         pass
 
     def bin_shift_and_tilt_Akima(self, order, singlebin, binSize, multiple, shift, sigma, slope, offset, minuit, **kwargs):
@@ -737,12 +736,12 @@ class Exposure(object):
 
     def make_pretty_results(self):
         self.Results = {}
-        for binSizeKey in list(self.fitResults.keys()):
+        for binSizeKey in self.fitResults.keys():
             if binSizeKey == 'order':
                 continue
             else:
                 self.Results[binSizeKey] = {}
-                for order in list(self.fitResults[binSizeKey].keys()):
+                for order in self.fitResults[binSizeKey].keys():
                     self.Results[binSizeKey][order] = {}
                     self.Results[binSizeKey][order]['avwav'] = []
                     self.Results[binSizeKey][order]['cal'] = []
@@ -751,7 +750,7 @@ class Exposure(object):
                     self.Results[binSizeKey][order]['Rerr'] = []
                     self.Results[binSizeKey][order]['avpix'] = []
                     self.Results[binSizeKey][order]['converged'] = []
-                    for bin in list(self.fitResults[binSizeKey][order].keys()):
+                    for bin in self.fitResults[binSizeKey][order].keys():
                         if len(self.fitResults[binSizeKey][order][bin]) > 2:
                             self.Results[binSizeKey][order]['avwav'].append(self.fitResults[binSizeKey][order][bin]['avwav'])
                             self.Results[binSizeKey][order]['cal'].append(self.fitResults[binSizeKey][order][bin]['cal'])
