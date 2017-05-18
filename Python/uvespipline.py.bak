@@ -147,14 +147,14 @@ AsciiSpectrographDir = "SpectrographAscii/"
 
 today = datetime.date.today()
 
-print("Beginning calibration analysis of data...")
+print "Beginning calibration analysis of data..."
 
 output1 = open("SpectrographAscii/output1.ascii",'w')
 output2 = open("SpectrographAscii/output2.ascii",'w')
 
 for core_exposure in exposures_to_analyze:
     CalibrationDataList = glob.glob("Differences/" + core_exposure + "*")
-    print(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+    print datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")
 
     for CalibrationDataFile in CalibrationDataList:
         #   Iterate over the Data files
@@ -292,32 +292,32 @@ for core_exposure in exposures_to_analyze:
         Output56FileHandle = open(Output56File, 'w')
         
         for thingy in range(len(wav[key4])):
-            print(wav[key4][thingy], \
+            print >>Output45FileHandle, wav[key4][thingy], \
                 cal[key4][thingy], err[key4][thingy], cal[key5][thingy], err[key5][thingy], \
-                interp45[thingy], vdiff[key45][thingy], file=Output45FileHandle)
-            print(wav[key4][thingy], \
+                interp45[thingy], vdiff[key45][thingy]
+            print >>Output46FileHandle, wav[key4][thingy], \
                 cal[key4][thingy], err[key4][thingy], cal[key6][thingy], err[key6][thingy], \
-                interp46[thingy], vdiff[key46][thingy], file=Output46FileHandle)
-            print(wav[key4][thingy], \
+                interp46[thingy], vdiff[key46][thingy]
+            print >>Output56FileHandle, wav[key4][thingy], \
                 cal[key5][thingy], err[key5][thingy], cal[key6][thingy], err[key6][thingy], \
-                interp56[thingy], vdiff[key56][thingy], file=Output56FileHandle)            
+                interp56[thingy], vdiff[key56][thingy]            
 
         Output45FileHandle.close()
         Output46FileHandle.close()
         Output56FileHandle.close()
         
-        print(key45, np.std(vdiff[key45]), np.std(cal[key4]), np.std(cal[key5]), np.std(cal[key4] - cal[key5]), \
-            np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key5])**2 - np.std(cal[key4] - cal[key5])**2 )), file=output1)
+        print >>output1, key45, np.std(vdiff[key45]), np.std(cal[key4]), np.std(cal[key5]), np.std(cal[key4] - cal[key5]), \
+            np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key5])**2 - np.std(cal[key4] - cal[key5])**2 ))
             
-        print(key46, np.std(vdiff[key46]), np.std(cal[key4]), np.std(cal[key6]), np.std(cal[key4] - cal[key6]), \
-            np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key6])**2 - np.std(cal[key4] - cal[key6])**2 )), file=output1)
+        print >>output1, key46, np.std(vdiff[key46]), np.std(cal[key4]), np.std(cal[key6]), np.std(cal[key4] - cal[key6]), \
+            np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key6])**2 - np.std(cal[key4] - cal[key6])**2 ))
         
-        print(key56, np.std(vdiff[key56]), np.std(cal[key5]), np.std(cal[key6]), np.std(cal[key5] - cal[key6]), \
-            np.sqrt(.5 * (np.std(cal[key5])**2 + np.std(cal[key6])**2 - np.std(cal[key5] - cal[key6])**2 )), file=output1)
+        print >>output1, key56, np.std(vdiff[key56]), np.std(cal[key5]), np.std(cal[key6]), np.std(cal[key5] - cal[key6]), \
+            np.sqrt(.5 * (np.std(cal[key5])**2 + np.std(cal[key6])**2 - np.std(cal[key5] - cal[key6])**2 ))
        
-        print(nodotnaming, np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key5])**2 - np.std(cal[key4] - cal[key5])**2 )), \
+        print >>output2, nodotnaming, np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key5])**2 - np.std(cal[key4] - cal[key5])**2 )), \
             np.sqrt(.5 * (np.std(cal[key4])**2 + np.std(cal[key6])**2 - np.std(cal[key4] - cal[key6])**2 )), \
-            np.sqrt(.5 * (np.std(cal[key5])**2 + np.std(cal[key6])**2 - np.std(cal[key5] - cal[key6])**2 )), file=output2)
+            np.sqrt(.5 * (np.std(cal[key5])**2 + np.std(cal[key6])**2 - np.std(cal[key5] - cal[key6])**2 ))
         
      #    print naming
      #    if naming == ".01.l.09":
@@ -328,4 +328,4 @@ for core_exposure in exposures_to_analyze:
 output1.close()
 output2.close()
 
-print("Finished. ", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S"))
+print "Finished. ", datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S")

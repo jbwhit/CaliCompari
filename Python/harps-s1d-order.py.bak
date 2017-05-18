@@ -31,7 +31,7 @@ def main(argv=None):
   try:
     try:
       opts, args = getopt.getopt(argv[1:], "hi:o:v", ["help", "inputfile=", "output="])
-    except getopt.error as msg:
+    except getopt.error, msg:
       raise Usage(msg)
     
     # option processing
@@ -49,25 +49,25 @@ def main(argv=None):
     # startingPixel = int(hdulist[0].header['CRPIX1'])
     # print "Starting pixel: ", startingPixel
     startingWavelength = hdulist[0].header['CRVAL1']
-    print("Starting wavelength: ", startingWavelength)
+    print "Starting wavelength: ", startingWavelength
     stepSize = hdulist[0].header['CDELT1']
-    print("Step size: ", stepSize)
+    print "Step size: ", stepSize
   
     fluxArray = hdulist[0].data
     wavelengthArray = np.arange(startingWavelength, len(fluxArray)*stepSize + startingWavelength, stepSize)
     
     if len(wavelengthArray) == len(fluxArray):
-      print("Wavelength and flux arrays are the same length")
+      print "Wavelength and flux arrays are the same length"
     else:
-      print("Problems: wavelength and flux arrays are unequal lengths!")
+      print "Problems: wavelength and flux arrays are unequal lengths!"
       if len(wavelengthArray) > len(fluxArray):
         repeat = len(wavelengthArray) - len(fluxArray)
         wavelist = list(wavelengthArray)
         for x in range(repeat):
           wavelist.pop(-1)
         wavelengthArray = np.array(wavelist)
-      print(len(wavelengthArray))
-      print(len(fluxArray))
+      print len(wavelengthArray)
+      print len(fluxArray)
   
     Overlap = 50.0 # Angstroms
     orders = 20 # number of orders to break it into. 
@@ -82,9 +82,9 @@ def main(argv=None):
         np.sqrt(np.abs(fluxArray[slicelength * i: slicelength*(i+1) + 5000]))])
       pf.append(outputFile, temp1)
       
-  except Usage as err:
-    print(sys.argv[0].split("/")[-1] + ": " + str(err.msg), file=sys.stderr)
-    print("\t for help use --help", file=sys.stderr)
+  except Usage, err:
+    print >> sys.stderr, sys.argv[0].split("/")[-1] + ": " + str(err.msg)
+    print >> sys.stderr, "\t for help use --help"
     return 2
 
 

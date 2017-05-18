@@ -144,13 +144,13 @@ def uniqueheaderfloat():
   for key in header[i2exposures[0]]:
     try:
       header[i2exposures[0]][key] = float(header[i2exposures[0]][key])
-      print("worked", key)
+      print "worked", key
     except:
-      print("borked")
+      print "borked"
       continue
     if all([header[exposure][key] for exposure in i2exposures]):
       ParameterList.append(key)
-      print("Added to Parameter List")
+      print "Added to Parameter List"
   pass
 
 AngleList = ['XDANGL',
@@ -269,7 +269,7 @@ def maskedtemplateguess(exposure):
 
 def plottemplateguess(template, exposure):
   """docstring for plottemplateguess"""
-  print("whatever")
+  print "whatever"
   for key in List[exposure]:
     pl.plot(avwav[key],avcal[key])
     pl.plot(avwav[key], initialtemplate[exposure] * (initialmult[exposure][0] * np.average(avwav[key]) + initialmult[exposure][1]) + ((initialshift[exposure][0]) * np.average(avwav[key]) + initialshift[exposure][1]) )
@@ -478,7 +478,7 @@ def maskedfirst():
     for key in List[exposure]:
       maskedtemplateguess(exposure)
       maskedlinearfit[exposure] = [maskedinitialmult[exposure][0],maskedinitialmult[exposure][1],maskedinitialshift[exposure][0],maskedinitialshift[exposure][1]]
-    print(exposure)
+    print exposure
     maskedfit[exposure], success = leastsq(maskedfullerrorFunction, maskedlinearfit[exposure], args=(exposure), maxfev=10000)
   
 # what's going on with 0065???
@@ -506,7 +506,7 @@ def third():
     matrixcal[exposure] = ma.column_stack([maskedcal[thing] for thing in [exposure + str(index) for index in range(len(maskedcal[exposure]))]])
     for index, key in enumerate(List[exposure]):
       maskedcal[key] = matrixcal[exposure][index]
-    print(exposure, count)
+    print exposure, count
   pass
 
 clipfit = {}
@@ -515,7 +515,7 @@ halfclipfit = {}
 def fourth():
   """docstring for fourth"""
   for exposure in i2exposures:
-    print(exposure)
+    print exposure
     for key in List[exposure]:
       templateguess(exposure)
       linearfit[exposure] = [initialmult[exposure][0],initialmult[exposure][1],initialshift[exposure][0],initialshift[exposure][1]]
@@ -564,18 +564,18 @@ def clippedresidualgoodness(templateExposure, dataExposure, parameterArray):
   return ma.concatenate(templist)
 
 def clippedprint():
-  print("Expo & Self ", end=' ') 
+  print "Expo & Self ", 
   for exposure in i2exposures:
-    print(" & ", exposure, end=' ') 
-  print("\\\\ \\hline")
-  print(" \\hline")
+    print " & ", exposure, 
+  print "\\\\ \\hline"
+  print " \\hline"
   for exposure in i2exposures:
     linerow =     [ma.std(clippedresidualgoodness(exposure,secondexposure,clipfit[exposure])) for secondexposure in i2exposures]
     stringrow = ''
     for item in linerow:
       stringrow +=  " & " + str(np.round(item, 1))
-    print(exposure, " & ", np.round(ma.std(maskedcal[exposure]),1), stringrow, end=' ')
-    print("\\\\ \\hline")
+    print exposure, " & ", np.round(ma.std(maskedcal[exposure]),1), stringrow,
+    print "\\\\ \\hline"
   pass
 
 def clippedplotdata(exposure):

@@ -30,7 +30,7 @@ import matplotlib.pylab as pl
 import time
 import datetime
 from optparse import OptionParser
-from configparser import RawConfigParser
+from ConfigParser import RawConfigParser
 import random as ra
 from scipy.optimize import leastsq
 import scipy.constants
